@@ -161,9 +161,11 @@ public class ServerNetworking {
 
                 // Set CustomModelData on the summon tool to reflect stored mount (for item model overrides)
                 try {
-                    int cmd = mapEntityTypeToCMD(EntityType.getId(living.getType()).toString());
-                    if (cmd > 0) {
-                        summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of(), List.of(cmd)));
+                    String modelKey = mapEntityTypeToModelKey(EntityType.getId(living.getType()).toString());
+                    if (modelKey != null && !modelKey.isEmpty()) {
+                        summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of(modelKey), List.of()));
+                    } else {
+                        summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
                     }
                 } catch (Throwable ignored) {}
                 
@@ -217,9 +219,11 @@ public class ServerNetworking {
                 summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(comp));
                 // Ensure CustomModelData remains set after updating
                 try {
-                    int cmd2 = mapEntityTypeToCMD(EntityType.getId(living.getType()).toString());
-                    if (cmd2 > 0) {
-                        summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of(), List.of(cmd2)));
+                    String modelKey2 = mapEntityTypeToModelKey(EntityType.getId(living.getType()).toString());
+                    if (modelKey2 != null && !modelKey2.isEmpty()) {
+                        summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of(modelKey2), List.of()));
+                    } else {
+                        summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
                     }
                 } catch (Throwable ignored) {}
                 
@@ -952,17 +956,17 @@ public class ServerNetworking {
         }
     }
 
-    // Maps entity ID to CustomModelData values for the summon tool item model overrides.
-    private static int mapEntityTypeToCMD(String id) {
-        if (id == null) return 100;
+    // Maps entity ID to CustomModelData string keys used by the saddle summon tool asset selector.
+    private static String mapEntityTypeToModelKey(String id) {
+        if (id == null || id.isEmpty()) return "";
         return switch (id) {
-            case "minecraft:horse" -> 101;
-            case "minecraft:donkey" -> 102;
-            case "minecraft:mule" -> 103;
-            case "minecraft:camel" -> 104;
-            case "minecraft:skeleton_horse" -> 105;
-            case "minecraft:zombie_horse" -> 106;
-            default -> 100;
+            case "minecraft:horse" -> "echo_summon:horse";
+            case "minecraft:donkey" -> "echo_summon:donkey";
+            case "minecraft:mule" -> "echo_summon:mule";
+            case "minecraft:camel" -> "echo_summon:camel";
+            case "minecraft:skeleton_horse" -> "echo_summon:skeleton_horse";
+            case "minecraft:zombie_horse" -> "echo_summon:zombie_horse";
+            default -> "";
         };
     }
 }
