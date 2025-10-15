@@ -58,8 +58,9 @@ public class ModItems  {
         entries.add(SADDLE_SUMMON_TOOL);
         // Add the Mount Saddle item to the item group
         entries.addAfter(Items.SADDLE, MOUNT_SADDLE);
-        entries.addAfter(MOUNT_SADDLE, HARNESS_SUMMON_TOOL);
-        entries.addAfter(HARNESS_SUMMON_TOOL, MOUNT_HARNESS);
+        // Make harness summon tool obsolete by not listing it in the creative tab
+        // Still list Mount Harness for testing/utility
+        entries.addAfter(MOUNT_SADDLE, MOUNT_HARNESS);
     }
 
     private static Item registerModItems(String itemName, Item item) {

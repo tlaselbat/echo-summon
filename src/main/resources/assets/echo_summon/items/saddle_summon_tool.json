@@ -44,6 +44,13 @@
           "type": "minecraft:model",
           "model": "echo_summon:item/saddle_summon_tool_zombie_horse"
         }
+      },
+      {
+        "when": "echo_summon:happy_ghast",
+        "model": {
+          "type": "minecraft:model",
+          "model": "echo_summon:item/saddle_summon_tool_happy_ghast"
+        }
       }
     ],
     "fallback": {

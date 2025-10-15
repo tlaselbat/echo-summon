@@ -47,7 +47,6 @@ public class ServerNetworking {
 
     public static void init() {
         PayloadTypeRegistry.playC2S().register(StringPayload.PACKET_ID, StringPayload.PACKET_CODEC);
-
         ServerPlayNetworking.registerGlobalReceiver(StringPayload.PACKET_ID, (StringPayload handler, ServerPlayNetworking.Context context) -> {
             var player = context.player();
             String action = handler.stringPayload();
@@ -55,7 +54,7 @@ public class ServerNetworking {
             boolean harnessAction = action.startsWith("harness_");
             ItemStack summonTool = findSummonToolInHand(player, harnessAction);
             if (summonTool.isEmpty()) {
-                player.sendMessage(Text.literal(harnessAction ? "No harness summon tool in hand" : "No saddle summon tool in hand"));
+                player.sendMessage(Text.literal("No summon tool in hand"));
                 return;
             }
             if (action.startsWith("harness_capture:")) {
@@ -820,13 +819,13 @@ public class ServerNetworking {
     private static ItemStack findSummonToolInHand(net.minecraft.server.network.ServerPlayerEntity player, boolean harness) {
         ItemStack main = player.getStackInHand(Hand.MAIN_HAND);
         if (harness) {
-            if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) return main;
+            if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem || main.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) return main;
         } else {
             if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem) return main;
         }
         ItemStack off = player.getStackInHand(Hand.OFF_HAND);
         if (harness) {
-            if (off.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) return off;
+            if (off.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem || off.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) return off;
         } else {
             if (off.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem) return off;
         }
@@ -1097,9 +1096,7 @@ public class ServerNetworking {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        if (!(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem)) {
-            return false;
-        }
+        if (!(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) && !(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem)) { return false; }
         NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
         if (custom == null) {
             return false;
