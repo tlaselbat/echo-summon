@@ -1,0 +1,7 @@
+{
+  "layers": {
+    "horse_saddle": [
+      { "texture": "echo_summon:horse_saddle_item" }
+    ]
+  }
+}

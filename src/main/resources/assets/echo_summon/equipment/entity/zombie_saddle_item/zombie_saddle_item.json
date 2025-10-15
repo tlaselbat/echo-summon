@@ -1,0 +1,7 @@
+{
+  "layers": {
+    "zombie_horse_saddle": [
+      { "texture": "echo_summon:zombie_saddle_item" }
+    ]
+  }
+}

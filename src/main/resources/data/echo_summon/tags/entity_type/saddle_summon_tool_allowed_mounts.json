@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:happy_ghast",
+    "minecraft:camel",
+    "minecraft:horse",
+    "minecraft:donkey",
+    "minecraft:mule",
+    "minecraft:skeleton_horse",
+    "minecraft:zombie_horse"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "package": "com.tabletmc.echo_summon.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "server.AbstractHorseEntityMixin",
+    "server.EntityMixin",
+    "server.HorseScreenHandlerMixin",
+    "server.PlayerManagerMixin",
+    "server.ServerPlayerMixin",
+    "server.HappyGhastEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "client.ClientPlayerMixin",
+    "client.render.SaddleFeatureRendererMixin"
+  ]
+}

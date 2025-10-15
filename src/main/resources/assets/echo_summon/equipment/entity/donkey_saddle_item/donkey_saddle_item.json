@@ -1,0 +1,7 @@
+{
+  "layers": {
+    "donkey_saddle": [
+      { "texture": "echo_summon:donkey_saddle_item" }
+    ]
+  }
+}

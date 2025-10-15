@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "echo_summon",
+	"version": "${version}",
+	"name": "ClickMC: Echo Summon",
+	"description": "A brief description of the mod.",
+	"authors": ["TabletMC"],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/TabletMC/Echo-Summon"
+	},
+	"license": "CC0-1.0",
+	"environment": "*",
+	"entrypoints": {
+		"client": ["com.tabletmc.echo_summon.ClientInitializer"],
+		"main": ["com.tabletmc.echo_summon.ModInitializer"]
+	},
+	"mixins": ["echo_summon.mixins.json"],
+	"depends": {
+		"fabric": ">=0.16.0",
+		"minecraft": "~1.21.8",
+		"fabric-api": ">=0.133.0",
+		"java": ">=21",
+		"cloth-config": "*",
+		"modmenu": "*"
+	}
+}

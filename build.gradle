@@ -1,0 +1,178 @@
+// Define the plugins used in this build script
+plugins {
+	// Use the Fabric Loom plugin for Minecraft mod development
+	id 'fabric-loom' version '1.10.1'
+	// Use the Maven Publish plugin for publishing the mod to a repository
+	id 'maven-publish'
+}
+
+// Configure the Fabric Loom plugin
+loom {
+	// Specify the path to the access widener file when needed
+	// accessWidenerPath = file("src/main/resources/echo_mounts.accesswidener")
+
+	runs {
+		client {
+			client()
+			ideConfigGenerated(true)
+			programArgs "--quickPlaySingleplayer", "New World"
+		}
+	}
+}
+
+// Configure the base settings for the mod
+base {
+	// Set the name of the mod archive
+	archivesName = "${project.archives_base_name}-${project.minecraft_version}"
+	// Set the version of the mod
+	version = project.mod_version
+	// Set the group ID of the mod
+	group = project.maven_group
+}
+
+// Define the repositories used in this build script
+repositories {
+	mavenLocal()
+	mavenCentral()
+	// Use the Maven repository for Cloth Config
+	maven {
+		url = uri("https://maven.shedaniel.me/")
+	} // Cloth Config
+	// Use the Maven repository for Mod Menu
+	maven {
+		url = uri("https://maven.terraformersmc.com/")
+	} // Mod Menu
+	// Use the JitPack repository for Mixin Extras
+	maven {
+		url = uri('https://jitpack.io')
+	} // Mixin Extras
+}
+
+// Define the dependencies used in this build script
+dependencies {
+	// Use the Minecraft dependency
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// Use the Yarn mappings
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	// Use the Fabric Loader dependency
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	// Use the Fabric API dependency, but exclude data generation module to avoid setup clash
+	modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}") {
+		exclude module: 'fabric-data-generation-api-v1'
+	}
+	// Add fabric-rendering-v1 for model predicate support
+	modImplementation(fabricApi.module("fabric-rendering-v1", project.fabric_version))
+	// Use the Cloth Config dependency
+	modApi("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
+		// Exclude the Fabric API group to avoid conflicts
+		exclude(group: 'net.fabricmc.fabric-api')
+	}
+	// Use the Mod Menu dependency
+	modImplementation "com.terraformersmc:modmenu:${project.mod_menu_version}"
+	// Use the Mixin Extras dependency
+	include(implementation("io.github.llamalad7:mixinextras-fabric:${project.mixinextras_version}"))
+}
+
+// Configure the processing of resources
+processResources {
+	// Set the version property for the resources
+	inputs.property "version", project.version
+	// Expand the version property in the fabric.mod.json file
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+// Configure the Java settings
+java {
+	// Generate a sources JAR
+	withSourcesJar()
+	// Set the source compatibility to Java 21
+	sourceCompatibility = JavaVersion.VERSION_21
+	// Set the target compatibility to Java 21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+// Configure the JAR task
+// (Removed malformed nested jar/compileJava block)
+
+//// Configure the publishing settings
+//publishing {
+//	// Create a Maven publication for the mod
+
+// Validation: ensure equipment JSONs and textures stay in sync
+tasks.register("validateEquipmentAssets") {
+    group = "verification"
+    description = "Validates equipment asset JSONs and textures alignment."
+    doLast {
+        def ns = "echo_mounts"
+        def projectDirFile = project.projectDir
+        def resDir = new File(projectDirFile, "src/main/resources/assets/${ns}")
+        def equipmentDir = new File(resDir, "equipment")
+        def texturesBase = new File(resDir, "textures/entity/equipment")
+        def modAssetsFile = new File(projectDirFile, "src/main/java/com/tabletmc/echo_mounts/item/equipment/ModEquipmentAssets.java")
+        def issues = []
+
+        if (!equipmentDir.exists()) {
+            throw new GradleException("Missing equipment directory: ${equipmentDir}")
+        }
+
+        // 1) JSON -> PNG validation
+        equipmentDir.eachFileRecurse { f ->
+            if (f.name.endsWith('.json')) {
+                def json
+                try {
+                    json = new groovy.json.JsonSlurper().parseText(f.text)
+                } catch (Throwable t) {
+                    issues << "Invalid JSON: ${f} (${t.message})"
+                    return
+                }
+                def layersObj = json.layers
+                if (!(layersObj instanceof Map) || layersObj.isEmpty()) {
+                    issues << "No 'layers' in ${f}"
+                    return
+                }
+                layersObj.each { layerType, arr ->
+                    if (!(arr instanceof List) || arr.isEmpty()) {
+                        issues << "Empty layer array for ${layerType} in ${f}"
+                        return
+                    }
+                    def tex = arr[0]?.texture
+                    if (!(tex instanceof String) || !tex.contains(':')) {
+                        issues << "Bad texture '${tex}' in ${f}"
+                        return
+                    }
+                    def parts = tex.split(':', 2)
+                    def texNs = parts[0]; def baseName = parts[1]
+                    if (texNs != ns) {
+                        issues << "Unexpected namespace '${texNs}' in ${f}"
+                    }
+                    def png = new File(texturesBase, "${layerType}/${baseName}.png")
+                    if (!png.exists()) {
+                        issues << "Missing texture: ${png} (from ${f}, layer ${layerType}, texture ${tex})"
+                    }
+                }
+            }
+        }
+
+        // 2) Code register() -> JSON exists
+        if (modAssetsFile.exists()) {
+            def code = modAssetsFile.text
+            def matcher = (code =~ /register\(\s*EquipmentModel\.LayerType\.[A-Z_]+\s*,\s*\"([^\"]+)\"\s*\)/)
+            matcher.each { m ->
+                def path = m[1]
+                def jsonFile = new File(equipmentDir, "${path}.json")
+                if (!jsonFile.exists()) {
+                    issues << "Missing equipment JSON for registered asset '${path}': ${jsonFile}"
+                }
+            }
+        }
+
+        if (!issues.isEmpty()) {
+            issues.each { println it }
+            throw new GradleException("Equipment validation failed with ${issues.size()} issue(s).")
+        } else {
+            println "Equipment assets validation passed."
+        }
+    }
+}

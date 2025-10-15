@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "echo_summon:item/mount_harness"
+  }
+}

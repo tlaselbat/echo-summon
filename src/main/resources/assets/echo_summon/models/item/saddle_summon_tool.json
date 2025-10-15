@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "echo_summon:item/saddle_summon_tool"
+  },
+  "overrides": [
+    {
+      "predicate": { "custom_model_data": 101 },
+      "model": "echo_summon:item/saddle_summon_tool_horse"
+    },
+    {
+      "predicate": { "custom_model_data": 102 },
+      "model": "echo_summon:item/saddle_summon_tool_donkey"
+    },
+    {
+      "predicate": { "custom_model_data": 103 },
+      "model": "echo_summon:item/saddle_summon_tool_mule"
+    },
+    {
+      "predicate": { "custom_model_data": 104 },
+      "model": "echo_summon:item/saddle_summon_tool_camel"
+    },
+    {
+      "predicate": { "custom_model_data": 105 },
+      "model": "echo_summon:item/saddle_summon_tool_skeleton_horse"
+    },
+    {
+      "predicate": { "custom_model_data": 106 },
+      "model": "echo_summon:item/saddle_summon_tool_zombie_horse"
+    }
+  ]
+}

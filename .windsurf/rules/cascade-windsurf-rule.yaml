@@ -1,0 +1,37 @@
+# cascade-windsurf-rule.yaml
+apiVersion: cascade.windsurf.dev/v1
+kind: Rule
+metadata:
+  name: cascade-windsurf-auto-continue
+  description: >
+    Force the workflow/AI to auto-continue through steps until the job completes,
+    with retry, backoff, checkpointing and safety limits.
+  enabled: true
+spec:
+  trigger:
+    events:
+      - job.started
+  conditions:
+    requiredMetadata:
+      - owner
+      - job_id
+  action:
+    type: cascade_auto_continue
+    continuePolicy:
+      maxTotalSteps: 1000
+      maxRunSeconds: 7200
+      maxRetriesPerStep: 3
+      initialBackoffSeconds: 2
+      maxBackoffSeconds: 60
+      stepTimeoutSeconds: 300
+      stopOnErrorCodes: [400, 401, 403, 422]
+      requireCheckpointing: true
+      concurrency: serial
+      checkpointLocation: /var/run/windsurf/checkpoints
+      auditLog: true
+  notifications:
+    onComplete:
+      - notify.owner
+    onFail:
+      - notify.admins
+      - create-ticket
