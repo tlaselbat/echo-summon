@@ -42,6 +42,11 @@ public class ModConstants {
 
     public static final String MOUNT_SADDLE_DATA_KEY = "mount_saddle_data";
     public static final String MOUNT_HARNESS_DATA_KEY = "mount_harness_data";
+    // Flag set on harness summon tool when a happy ghast is stored
+    public static final String STORED_IS_HAPPY_GHAST_KEY = "stored_is_happy_ghast";
+
+    // Convenience identifier for the happy ghast entity id
+    public static final Identifier HAPPY_GHAST_ID = Identifier.of("minecraft", "happy_ghast");
 
     public static final String ALLOWED_MOUNTS_TAG_PATH = "saddle_summon_tool_allowed_mounts";
     public static final String HARNESS_ALLOWED_MOUNTS_TAG_PATH = "harness_summon_tool_allowed_mounts";
