@@ -9,7 +9,7 @@ plugins {
 // Configure the Fabric Loom plugin
 loom {
 	// Specify the path to the access widener file when needed
-	// accessWidenerPath = file("src/main/resources/echo_mounts.accesswidener")
+	// accessWidenerPath = file("src/main/resources/echo_summon.accesswidener")
 
 	runs {
 		client {
@@ -105,12 +105,12 @@ tasks.register("validateEquipmentAssets") {
     group = "verification"
     description = "Validates equipment asset JSONs and textures alignment."
     doLast {
-        def ns = "echo_mounts"
+        def ns = "echo_summon"
         def projectDirFile = project.projectDir
         def resDir = new File(projectDirFile, "src/main/resources/assets/${ns}")
         def equipmentDir = new File(resDir, "equipment")
         def texturesBase = new File(resDir, "textures/entity/equipment")
-        def modAssetsFile = new File(projectDirFile, "src/main/java/com/tabletmc/echo_mounts/item/equipment/ModEquipmentAssets.java")
+        def modAssetsFile = new File(projectDirFile, "src/main/java/com/tabletmc/echo_summon/item/equipment/ModEquipmentAssets.java")
         def issues = []
 
         if (!equipmentDir.exists()) {

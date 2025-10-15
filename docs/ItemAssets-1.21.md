@@ -19,7 +19,7 @@ Minimal, correct example:
 {
   "model": {
     "type": "minecraft:model",
-    "model": "echo_mounts:item/saddle_summon_tool"
+    "model": "echo_summon:item/saddle_summon_tool"
   }
 }
 ```
@@ -27,7 +27,7 @@ Minimal, correct example:
 Notes:
 - `type: "minecraft:model"` means “use a baked JSON model”.
 - `model`: model ID in `<namespace>:<path>` format. The example resolves to:
-  - `assets/echo_mounts/models/item/saddle_summon_tool.json`.
+  - `assets/echo_summon/models/item/saddle_summon_tool.json`.
 - If this file exists, it takes precedence over the legacy fallback of looking up `models/item/<id>.json` by name.
 
 Common mistakes:
@@ -43,7 +43,7 @@ Typical flat icon model:
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "echo_mounts:item/saddle_summon_tool"
+    "layer0": "echo_summon:item/saddle_summon_tool"
   }
 }
 ```
@@ -64,12 +64,12 @@ Common mistakes:
 Path: `assets/<ns>/textures/item/<name>.png`
 
 Notes:
-- The model’s `layer0` string (e.g., `echo_mounts:item/saddle_summon_tool`) must resolve to a PNG in your item textures folder under your namespace.
+- The model’s `layer0` string (e.g., `echo_summon:item/saddle_summon_tool`) must resolve to a PNG in your item textures folder under your namespace.
 - Prefer power-of-two dimensions (e.g., 16×16, 32×32) and transparent background for icons.
 
-## Sprite atlas in this repo (echo_mounts)
+## Sprite atlas in this repo (echo_summon)
 
-- Atlas file: `assets/echo_mounts/atlases/gui.json`
+- Atlas file: `assets/echo_summon/atlases/gui.json`
 
 ```json
 {
@@ -79,11 +79,11 @@ Notes:
 }
 ```
 
-- This registers every PNG under `assets/echo_mounts/textures/item/` as a sprite with ID:
-  - `echo_mounts:item/<relative_path_without_.png>`
+- This registers every PNG under `assets/echo_summon/textures/item/` as a sprite with ID:
+  - `echo_summon:item/<relative_path_without_.png>`
 - Examples:
-  - `textures/item/saddle_summon_tool.png` → `echo_mounts:item/saddle_summon_tool`
-  - `textures/item/tools/saddle_summon_tool.png` → `echo_mounts:item/tools/saddle_summon_tool`
+  - `textures/item/saddle_summon_tool.png` → `echo_summon:item/saddle_summon_tool`
+  - `textures/item/tools/saddle_summon_tool.png` → `echo_summon:item/tools/saddle_summon_tool`
 
 ## Resolution order and precedence
 
@@ -137,12 +137,12 @@ Quick isolation tricks:
 
 ## Changing paths and renaming (items, models, textures)
 
-- Concrete steps for this repo (`echo_mounts`), using `saddle_summon_tool` and `mount_saddle`.
+- Concrete steps for this repo (`echo_summon`), using `saddle_summon_tool` and `mount_saddle`.
 
 ### A) Move or rename a texture PNG
 
 - Original setup:
-  - Texture: `assets/echo_mounts/textures/item/saddle_summon_tool.png`
+  - Texture: `assets/echo_summon/textures/item/saddle_summon_tool.png`
 {{ ... }}
   ```
 - Only change the model’s `textures.layer0` if you also moved/renamed the texture (see A).
@@ -150,19 +150,19 @@ Quick isolation tricks:
 ### C) Rename the item ID (command/give ID)
 
 - Suppose you want `saddle_summon_tool` → `echo_whistle`.
-  - Create `assets/echo_mounts/items/echo_whistle.json` and point it to your model:
+  - Create `assets/echo_summon/items/echo_whistle.json` and point it to your model:
   ```json
-  { "model": { "type": "minecraft:model", "model": "echo_mounts:item/saddle_summon_tool" } }
+  { "model": { "type": "minecraft:model", "model": "echo_summon:item/saddle_summon_tool" } }
   ```
   or, if you also renamed the model:
   ```json
-  { "model": { "type": "minecraft:model", "model": "echo_mounts:item/echo_whistle" } }
+  { "model": { "type": "minecraft:model", "model": "echo_summon:item/echo_whistle" } }
   ```
 {{ ... }}
 
 ### D) Change the namespace
 
-- If moving from `echo_mounts` to, say, `tp`:
+- If moving from `echo_summon` to, say, `tp`:
   - Move files under `assets/tp/...`
   - Update all IDs inside JSON:
     - In item asset: `"model": "tp:item/..."`

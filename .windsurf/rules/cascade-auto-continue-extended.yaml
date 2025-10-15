@@ -1,0 +1,34 @@
+﻿apiVersion: cascade.windsurf.dev/v1
+kind: Rule
+metadata:
+  name: cascade-auto-continue-extended
+  description: >
+    Auto-continue with extended timeouts so Cascade keeps progressing until completion.
+  enabled: true
+spec:
+  trigger:
+    events:
+      - job.started
+  conditions:
+    requiredMetadata:
+      - owner
+      - job_id
+  action:
+    type: cascade_auto_continue
+    continuePolicy:
+      maxTotalSteps: 2000
+      maxRunSeconds: 10800
+      maxRetriesPerStep: 3
+      initialBackoffSeconds: 2
+      maxBackoffSeconds: 60
+      stepTimeoutSeconds: 600
+      stopOnErrorCodes: [400, 401, 403, 422]
+      requireCheckpointing: true
+      concurrency: serial
+      checkpointLocation: /var/run/windsurf/checkpoints
+      auditLog: true
+  notifications:
+    onComplete:
+      - notify.owner
+    onFail:
+      - notify.admins
