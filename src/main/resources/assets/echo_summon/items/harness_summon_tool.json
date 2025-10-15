@@ -1,6 +1,19 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "echo_summon:item/harness_summon_tool"
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "cases": [
+      {
+        "when": "echo_summon:happy_ghast",
+        "model": {
+          "type": "minecraft:model",
+          "model": "echo_summon:item/harness_summon_tool_happy_ghast"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "echo_summon:item/harness_summon_tool"
+    }
   }
 }

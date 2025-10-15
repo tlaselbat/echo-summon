@@ -535,7 +535,17 @@ public class ServerNetworking {
         } else {
             comp.remove(ModConstants.MOUNT_HARNESS_DATA_KEY);
         }
+        // Flag if happy ghast and set CustomModelData for item predicate
+        boolean isHappyGhast = ModConstants.HAPPY_GHAST_ID != null && ModConstants.HAPPY_GHAST_ID.toString().equals(typeIdStr);
+        comp.putBoolean(ModConstants.STORED_IS_HAPPY_GHAST_KEY, isHappyGhast);
         summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(comp));
+        try {
+            if (isHappyGhast) {
+                summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of("echo_summon:happy_ghast"), List.of()));
+            } else {
+                summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
+            }
+        } catch (Throwable ignored) {}
 
         living.remove(Entity.RemovalReason.DISCARDED);
         ((com.tabletmc.echo_summon.impl.EntityMixinImpl) living).undoRemove();
@@ -659,7 +669,23 @@ public class ServerNetworking {
             }
         }
 
+        // Maintain happy ghast flag and CustomModelData based on stored entity type
+        boolean isHappyGhast2 = false;
+        if (typeId != null) {
+            isHappyGhast2 = ModConstants.HAPPY_GHAST_ID != null && ModConstants.HAPPY_GHAST_ID.equals(typeId);
+        } else {
+            String idStr = com.tabletmc.echo_summon.util.NbtUtils.getString(stored, "id");
+            isHappyGhast2 = ModConstants.HAPPY_GHAST_ID != null && ModConstants.HAPPY_GHAST_ID.toString().equals(idStr);
+        }
+        toolNbt.putBoolean(ModConstants.STORED_IS_HAPPY_GHAST_KEY, isHappyGhast2);
         summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(toolNbt));
+        try {
+            if (isHappyGhast2) {
+                summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of("echo_summon:happy_ghast"), List.of()));
+            } else {
+                summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
+            }
+        } catch (Throwable ignored) {}
 
         living.remove(Entity.RemovalReason.DISCARDED);
         ((com.tabletmc.echo_summon.impl.EntityMixinImpl) living).undoRemove();
@@ -777,8 +803,12 @@ public class ServerNetworking {
 
         comp.remove(ModConstants.STORED_MOUNT_KEY);
         comp.remove(ModConstants.MOUNT_HARNESS_DATA_KEY);
+        comp.remove(ModConstants.STORED_IS_HAPPY_GHAST_KEY);
         comp.remove(ModConstants.HARNESS_SUMMON_TOOL_ID_KEY);
         summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(comp));
+        try {
+            summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
+        } catch (Throwable ignored) {}
 
         player.getItemCooldownManager().set(summonTool, ModConstants.SUMMON_COOLDOWN_TICKS);
         player.sendMessage(Text.literal("Harness mount released"));
@@ -991,6 +1021,92 @@ public class ServerNetworking {
         if (entity instanceof SaddleableMountImpl saddleable) {
             saddleable.echo_summon$setSaddled(saddled);
         }
+    }
+
+    public static LivingEntity findHarnessSummonedMountForTool(ServerPlayerEntity player, ItemStack summonTool) {
+        return findHarnessSummonedMount(player, summonTool);
+    }
+
+    public static void handleHarnessAutoDismiss(ServerPlayerEntity player, LivingEntity mount) {
+        if (player == null || mount == null) {
+            return;
+        }
+        if (!mount.getCommandTags().contains(ModConstants.HARNESS_SUMMON_TAG)) {
+            return;
+        }
+
+        String toolId = extractHarnessToolId(mount);
+        if (!toolId.isEmpty()) {
+            ItemStack summonTool = findHarnessSummonToolById(player, toolId);
+            if (!summonTool.isEmpty()) {
+                dismissHarnessMount(player, summonTool, mount);
+                return;
+            }
+        }
+
+        mount.remove(Entity.RemovalReason.DISCARDED);
+        ((com.tabletmc.echo_summon.impl.EntityMixinImpl) mount).undoRemove();
+        mount.removeCommandTag(ModConstants.HARNESS_SUMMON_TAG);
+        if (!toolId.isEmpty()) {
+            mount.removeCommandTag(ModConstants.MOD_ID + ":harness_tool:" + toolId);
+        }
+        if (mount instanceof HarnessableMountImpl harnessable) {
+            harnessable.echo_summon$setHarnessed(false);
+        }
+        if (mount instanceof MobEntity mob) {
+            try {
+                mob.setAiDisabled(false);
+            } catch (Throwable ignored) {}
+        }
+        player.sendMessage(Text.literal("Harness mount dismissed"), true);
+    }
+
+    private static String extractHarnessToolId(LivingEntity living) {
+        String prefix = ModConstants.MOD_ID + ":harness_tool:";
+        for (String tag : living.getCommandTags()) {
+            if (tag.startsWith(prefix)) {
+                return tag.substring(prefix.length());
+            }
+        }
+        return "";
+    }
+
+    private static ItemStack findHarnessSummonToolById(ServerPlayerEntity player, String toolId) {
+        if (toolId == null || toolId.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack main = player.getMainHandStack();
+        if (isMatchingHarnessSummonTool(main, toolId)) {
+            return main;
+        }
+        ItemStack off = player.getOffHandStack();
+        if (isMatchingHarnessSummonTool(off, toolId)) {
+            return off;
+        }
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (isMatchingHarnessSummonTool(stack, toolId)) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static boolean isMatchingHarnessSummonTool(ItemStack stack, String toolId) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        if (!(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem)) {
+            return false;
+        }
+        NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (custom == null) {
+            return false;
+        }
+        NbtCompound comp = custom.copyNbt();
+        String id = com.tabletmc.echo_summon.util.NbtUtils.getString(comp, ModConstants.HARNESS_SUMMON_TOOL_ID_KEY);
+        return toolId.equals(id);
     }
 
     // Maps entity ID to CustomModelData string keys used by the saddle summon tool asset selector.

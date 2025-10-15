@@ -18,6 +18,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -142,6 +143,37 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         }
 
         tpWasRiding = nowRiding;
+    }
+
+    @Inject(method = "tick", at = @At("TAIL"), require = 0)
+    private void echo_summon$checkHarnessGhastBounds(CallbackInfo ci) {
+        ServerPlayerEntity self = (ServerPlayerEntity) (Object) this;
+
+        ItemStack main = self.getMainHandStack();
+        ItemStack off = self.getOffHandStack();
+        LivingEntity harnessMount = null;
+
+        if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) {
+            harnessMount = ServerNetworking.findHarnessSummonedMountForTool(self, main);
+        }
+        if (harnessMount == null && off.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) {
+            harnessMount = ServerNetworking.findHarnessSummonedMountForTool(self, off);
+        }
+
+        if (harnessMount == null) {
+            return;
+        }
+
+        Identifier id = net.minecraft.entity.EntityType.getId(harnessMount.getType());
+        if (id == null || !id.equals(Identifier.of("minecraft", "happy_ghast"))) {
+            return;
+        }
+
+        boolean differentDim = harnessMount.getWorld().getRegistryKey() != self.getWorld().getRegistryKey();
+        boolean tooFar = harnessMount.squaredDistanceTo(self) > 400.0; // 20 blocks squared
+        if (differentDim || tooFar) {
+            ServerNetworking.handleHarnessAutoDismiss(self, harnessMount);
+        }
     }
 
     @Unique
