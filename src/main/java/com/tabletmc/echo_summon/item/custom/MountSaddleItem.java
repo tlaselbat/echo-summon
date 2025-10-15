@@ -88,6 +88,10 @@ public class MountSaddleItem extends Item {
         if (component != null) {
             stack.set(DataComponentTypes.EQUIPPABLE, component);
         }
+        try {
+            stack.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        } catch (Throwable ignored) {
+        }
     }
 
     private static EquippableComponent buildComponentFor(EntityType<?> entityType) {

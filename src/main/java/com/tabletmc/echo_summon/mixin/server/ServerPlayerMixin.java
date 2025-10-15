@@ -1,13 +1,21 @@
 package com.tabletmc.echo_summon.mixin.server;
 
+import com.tabletmc.echo_summon.ModConstants;
 import com.tabletmc.echo_summon.impl.MountSaddleMountImpl;
 import com.tabletmc.echo_summon.impl.ServerPlayerEntityImpl;
+import com.tabletmc.echo_summon.item.ModItems;
 import com.tabletmc.echo_summon.net.ServerNetworking;
+import com.tabletmc.echo_summon.util.NbtUtils;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,11 +35,6 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
     @Unique private boolean tpWasRiding = false;
     @Unique private Entity tpLastVehicle = null;
 
-    /**
-     * Summons a horse entity for the player, optionally mounting the player on the horse.
-     *
-     * @param mountPlayer Whether to mount the player on the horse
-     */
     @Override
     public void summonMount(boolean mountPlayer) {
         if (storedHorse == null) {
@@ -69,11 +72,6 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         }
     }
 
-    /**
-     * Stores a horse entity in the player's data.
-     *
-     * @param mount The horse entity to store.
-     */
     @Override
     public void storeMount(AnimalEntity mount) {
         if (storedHorse != null && !storedHorse.getUuid().equals(mount.getUuid())) {
@@ -102,6 +100,24 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         }
     }
 
+    @Inject(method = "dropSelectedItem", at = @At("HEAD"), cancellable = true)
+    private void echo_summon$preventSaddleDrop(boolean dropEntireStack, CallbackInfoReturnable<Boolean> cir) {
+        ServerPlayerEntity player = (ServerPlayerEntity) (Object) this;
+        ItemStack selected = player.getMainHandStack();
+        if (echo_summon$isMountSaddle(selected)) {
+            cir.setReturnValue(false);
+            cir.cancel();
+        }
+    }
+
+    @Inject(method = "dropItem(Lnet/minecraft/item/ItemStack;ZZ)Lnet/minecraft/entity/ItemEntity;", at = @At("HEAD"), cancellable = true)
+    private void echo_summon$preventSaddleDrop(ItemStack stack, boolean throwRandomly, boolean retainOwnership, CallbackInfoReturnable<ItemEntity> cir) {
+        if (echo_summon$isMountSaddle(stack)) {
+            cir.setReturnValue(null);
+            cir.cancel();
+        }
+    }
+
     // stopRiding is now handled in EntityMixin to avoid descriptor issues on ServerPlayerEntity.
 
     // Replace stopRiding hook with a stable tick-based transition detector to avoid recursion
@@ -126,5 +142,19 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         }
 
         tpWasRiding = nowRiding;
+    }
+
+    @Unique
+    private static boolean echo_summon$isMountSaddle(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.isOf(ModItems.MOUNT_SADDLE)) {
+            return false;
+        }
+        NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (custom == null) {
+            return false;
+        }
+        NbtCompound data = custom.copyNbt();
+        String storedId = NbtUtils.getString(data, ModConstants.STORED_MOUNT_ID_KEY);
+        return !storedId.isEmpty();
     }
 }

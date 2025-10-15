@@ -26,9 +26,12 @@ import net.minecraft.component.type.NbtComponent;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
+import net.minecraft.world.Heightmap;
 
 import java.util.List;
 import java.util.function.Function;
@@ -359,7 +362,7 @@ public class ServerNetworking {
                 }
                 // Safer spawn: raycast to find valid position in front of player
                 Vec3d look = player.getRotationVec(1.0F).normalize();
-                Vec3d spawnPos = findSafeSpawnPosition(player, look, 1.5, 3.0);
+                Vec3d spawnPos = findSafeSpawnPosition(player, look, 3.0, 5.0);
                 mount.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, player.getYaw(), player.getPitch());
                 
                 // Remove echo saddle from the mount's equipped slot and give to player
@@ -928,26 +931,60 @@ public class ServerNetworking {
      * Falls back to player position if no valid spot found.
      */
     private static Vec3d findSafeSpawnPosition(net.minecraft.server.network.ServerPlayerEntity player, Vec3d direction, double preferredDistance, double maxDistance) {
-        Vec3d start = player.getEyePos();
-        Vec3d end = start.add(direction.multiply(maxDistance));
-        
-        // Raycast to find first non-solid block
-        var hitResult = player.getWorld().raycast(new net.minecraft.world.RaycastContext(
-            start,
-            end,
-            net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
-            net.minecraft.world.RaycastContext.FluidHandling.NONE,
-            player
+        net.minecraft.server.world.ServerWorld world = player.getWorld();
+        Vec3d forward = direction.normalize();
+
+        double desiredDistance = Math.min(maxDistance, preferredDistance + 1.0);
+        Vec3d eyePos = player.getEyePos();
+        Vec3d rayEnd = eyePos.add(forward.multiply(maxDistance + 1.0));
+        Vec3d targetPos = player.getPos().add(forward.multiply(desiredDistance));
+
+        var hitResult = world.raycast(new net.minecraft.world.RaycastContext(
+                eyePos,
+                rayEnd,
+                net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                player
         ));
-        
+
         if (hitResult.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
-            // Spawn just before the hit position
-            Vec3d safePos = hitResult.getPos().subtract(direction.multiply(0.5));
-            return new Vec3d(safePos.x, player.getY(), safePos.z);
+            double hitDistance = hitResult.getPos().distanceTo(eyePos);
+            double adjustedDistance = Math.max(0.5, Math.min(desiredDistance, hitDistance - 1.0));
+            targetPos = eyePos.add(forward.multiply(adjustedDistance));
         }
-        
-        // No obstruction, use preferred distance
-        return player.getPos().add(direction.multiply(preferredDistance));
+
+        BlockPos column = BlockPos.ofFloored(targetPos.x, player.getY(), targetPos.z);
+        ChunkPos chunkPos = new ChunkPos(column);
+        if (!world.isChunkLoaded(chunkPos.x, chunkPos.z)) {
+            column = player.getBlockPos();
+            chunkPos = new ChunkPos(column);
+        }
+
+        BlockPos surface = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, column);
+        BlockPos ground = surface.down();
+
+        int downwardChecks = 0;
+        while (world.isAir(ground) && ground.getY() > world.getBottomY() && downwardChecks++ < 8) {
+            ground = ground.down();
+        }
+        if (world.isAir(ground)) {
+            BlockPos fallbackSurface = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, player.getBlockPos());
+            return Vec3d.ofBottomCenter(fallbackSurface);
+        }
+
+        BlockPos spawnBlock = ground.up();
+        if (!world.isAir(spawnBlock) || !world.isAir(spawnBlock.up())) {
+            BlockPos check = spawnBlock;
+            for (int i = 0; i < 4; i++) {
+                if (world.isAir(check) && world.isAir(check.up())) {
+                    spawnBlock = check;
+                    break;
+                }
+                check = check.up();
+            }
+        }
+
+        return Vec3d.ofBottomCenter(spawnBlock);
     }
 
     private static void setSaddled(Entity entity, boolean saddled) {
