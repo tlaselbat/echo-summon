@@ -343,7 +343,10 @@ public class ServerNetworking {
                     player.sendMessage(Text.literal("No mount stored in summon tool"));
                     return;
                 }
-                java.util.Optional<NbtCompound> opt = comp.getCompound(ModConstants.STORED_MOUNT_KEY);
+                                // Persist latest from currently-summoned linked mount (captures donkey/mule chest contents)
+                persistSummonedMountByStoredIdIfPresent(player, summonTool);
+                NbtComponent _ref = summonTool.get(DataComponentTypes.CUSTOM_DATA);
+                if (_ref != null) { comp = _ref.copyNbt(); }java.util.Optional<NbtCompound> opt = comp.getCompound(ModConstants.STORED_MOUNT_KEY);
                 if (opt.isEmpty() || opt.get().isEmpty()) {
                     player.sendMessage(Text.literal("No mount stored in summon tool"));
                     return;
@@ -359,28 +362,51 @@ public class ServerNetworking {
                     player.sendMessage(Text.literal("Stored entity is invalid"));
                     return;
                 }
-                // Safer spawn: raycast to find valid position in front of player
+                // Ensure released mounts are not treated as summoned
+                try {
+                    mount.removeCommandTag(ModConstants.SUMMON_TAG);
+                    for (String tag : new java.util.ArrayList<>(mount.getCommandTags())) {
+                        if (tag.startsWith(SADDLE_TOOL_TAG_PREFIX)) {
+                            mount.removeCommandTag(tag);
+                        }
+                    }
+                } catch (Throwable ignored) {}                // Safer spawn: raycast to find valid position in front of player
                 Vec3d look = player.getRotationVec(1.0F).normalize();
                 Vec3d spawnPos = findSafeSpawnPosition(player, look, 3.0, 5.0);
                 mount.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, player.getYaw(), player.getPitch());
-                
-                // Remove echo saddle from the mount's equipped slot and give to player
+
+                // Keep mount saddle bound to the mount (non-removable)
                 EquipmentSlot slot = MountSaddleItem.resolveSlot(mount.getType());
-                EquipmentSlot removalSlot = slot != null ? slot : EquipmentSlot.SADDLE;
-                ItemStack saddleSlot = mount.getEquippedStack(removalSlot);
-                if (saddleSlot.isOf(ModItems.MOUNT_SADDLE)) {
-                    ItemStack copy = saddleSlot.copy();
-                    NbtComponent echoCustom = copy.get(DataComponentTypes.CUSTOM_DATA);
-                    NbtCompound echoComp = echoCustom != null ? echoCustom.copyNbt() : new NbtCompound();
-                    if (!echoComp.contains("mount_type")) {
-                        echoComp.putString("mount_type", EntityType.getId(mount.getType()).toString());
+                EquipmentSlot equipSlot = slot != null ? slot : EquipmentSlot.SADDLE;
+                ItemStack saddleSlot = mount.getEquippedStack(equipSlot);
+                if (!saddleSlot.isOf(ModItems.MOUNT_SADDLE)) {
+                    java.util.Optional<NbtCompound> saddleDataOpt = stored.getCompound("mount_saddle_data");
+                    NbtCompound saddleData = saddleDataOpt.filter(data -> !data.isEmpty()).orElseGet(NbtCompound::new);
+                    if (!saddleData.contains("mount_type")) {
+                        saddleData.putString("mount_type", EntityType.getId(mount.getType()).toString());
                     }
-                    copy.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(echoComp));
-                    player.giveItemStack(copy);
-                    mount.equipStack(removalSlot, ItemStack.EMPTY);
-                    if (removalSlot == EquipmentSlot.SADDLE) {
-                        setSaddled(mount, false);
+                    saddleData.remove(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
+                    ItemStack mountSaddle = new ItemStack(ModItems.MOUNT_SADDLE);
+                    MountSaddleItem.applyEquippable(mountSaddle, mount.getType());
+                    if (!saddleData.isEmpty()) {
+                        mountSaddle.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(saddleData));
                     }
+                    mount.equipStack(equipSlot, mountSaddle);
+                    saddleSlot = mount.getEquippedStack(equipSlot);
+                } else {
+                    NbtComponent existing = saddleSlot.get(DataComponentTypes.CUSTOM_DATA);
+                    if (existing != null) {
+                        NbtCompound echoComp = existing.copyNbt();
+                        if (!echoComp.contains("mount_type")) {
+                            echoComp.putString("mount_type", EntityType.getId(mount.getType()).toString());
+                        }
+                        echoComp.remove(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
+                        saddleSlot.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(echoComp));
+                    }
+                }
+
+                if (equipSlot == EquipmentSlot.SADDLE) {
+                    setSaddled(mount, true);
                 } else {
                     // Fallback: create from stored mapping data if not equipped
                     stored.getCompound("mount_saddle_data").ifPresent(saddleData -> {
@@ -409,7 +435,9 @@ public class ServerNetworking {
                 {
                     String toolId = com.tabletmc.echo_summon.util.NbtUtils.getString(comp, ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
                     if (!toolId.isEmpty()) {
-                        deleteLinkedMountSaddles(player, toolId);
+                        deleteLinkedMountSaddles(player, toolId);                    // Clear the saddle summon tool id so the tool can capture a new mount fresh
+                    comp.remove(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
+                    summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(comp));
                     }
                 }
                 
@@ -722,6 +750,13 @@ public class ServerNetworking {
         mount.refreshPositionAndAngles(player.getX(), player.getY(), player.getZ(), player.getYaw(), player.getPitch());
         mount.setVelocity(player.getVelocity());
         mount.addCommandTag(ModConstants.HARNESS_SUMMON_TAG);
+        // Ensure harness-summoned mounts revive at full health (e.g., happy ghast)
+        try {
+            float max = mount.getMaxHealth();
+            if (max > 0.0f) {
+                mount.setHealth(max);
+            }
+        } catch (Throwable ignored) {}
 
         if (mount instanceof MobEntity mob) {
             try { mob.setAiDisabled(true); } catch (Throwable ignored) {}
@@ -819,13 +854,13 @@ public class ServerNetworking {
     private static ItemStack findSummonToolInHand(net.minecraft.server.network.ServerPlayerEntity player, boolean harness) {
         ItemStack main = player.getStackInHand(Hand.MAIN_HAND);
         if (harness) {
-            if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem || main.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) return main;
+            if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem) return main;
         } else {
             if (main.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem) return main;
         }
         ItemStack off = player.getStackInHand(Hand.OFF_HAND);
         if (harness) {
-            if (off.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem || off.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) return off;
+            if (off.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem) return off;
         } else {
             if (off.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem) return off;
         }
@@ -887,7 +922,8 @@ public class ServerNetworking {
         if (player == null || living == null) {
             return false;
         }
-        living.remove(Entity.RemovalReason.DISCARDED);
+                // Persist current mount state back into the summon tool (captures donkey/mule chest inventory)
+        persistSaddleSummonedMountToTool(player, summonTool, living, toolId);living.remove(Entity.RemovalReason.DISCARDED);
         ((com.tabletmc.echo_summon.impl.EntityMixinImpl) living).undoRemove();
         living.removeCommandTag(ModConstants.SUMMON_TAG);
         if (!toolId.isEmpty()) {
@@ -1096,7 +1132,7 @@ public class ServerNetworking {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        if (!(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem) && !(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem)) { return false; }
+        if (!(stack.getItem() instanceof com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem)) { return false; }
         NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
         if (custom == null) {
             return false;
@@ -1107,7 +1143,74 @@ public class ServerNetworking {
     }
 
     // Maps entity ID to CustomModelData string keys used by the saddle summon tool asset selector.
-    private static String mapEntityTypeToModelKey(String id) {
+        // Persist the currently-summoned mount's full NBT into the summon tool (keeps chest inventory and saddle mapping)
+    private static void persistSaddleSummonedMountToTool(ServerPlayerEntity player, ItemStack summonTool, LivingEntity living, String toolId) {
+        if (summonTool == null || summonTool.isEmpty() || living == null) return;
+        NbtComponent toolCustom = summonTool.get(DataComponentTypes.CUSTOM_DATA);
+        NbtCompound toolNbt = toolCustom != null ? toolCustom.copyNbt() : new NbtCompound();
+        String resolvedToolId = (toolId != null && !toolId.isEmpty()) ? toolId : com.tabletmc.echo_summon.util.NbtUtils.getString(toolNbt, ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
+
+        NbtCompound stored = net.minecraft.predicate.NbtPredicate.entityToNbt(living);
+        Identifier typeId = EntityType.getId(living.getType());
+        if (typeId != null) stored.putString("id", typeId.toString());
+        stored.putString(ModConstants.STORED_MOUNT_ID_KEY, living.getUuidAsString());
+        if (!resolvedToolId.isEmpty()) {
+            stored.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, resolvedToolId);
+            toolNbt.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, resolvedToolId);
+        }
+
+        EquipmentSlot slot = MountSaddleItem.resolveSlot(living.getType());
+        EquipmentSlot ps = slot != null ? slot : EquipmentSlot.SADDLE;
+        ItemStack eq = living.getEquippedStack(ps);
+        if (!eq.isEmpty() && eq.isOf(ModItems.MOUNT_SADDLE)) {
+            NbtComponent sd = eq.get(DataComponentTypes.CUSTOM_DATA);
+            if (sd != null) {
+                NbtCompound sdNbt = sd.copyNbt();
+                if (!sdNbt.contains("mount_type")) {
+                    sdNbt.putString("mount_type", EntityType.getId(living.getType()).toString());
+                }
+                stored.put("mount_saddle_data", sdNbt);
+            }
+        }
+
+        toolNbt.put(ModConstants.STORED_MOUNT_KEY, stored);
+        summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(toolNbt));
+        try {
+            String idStr = typeId != null ? typeId.toString() : com.tabletmc.echo_summon.util.NbtUtils.getString(stored, "id");
+            String modelKey = mapEntityTypeToModelKey(idStr);
+            if (modelKey != null && !modelKey.isEmpty()) {
+                summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of(modelKey), List.of()));
+            } else {
+                summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    // If the stored mount is currently spawned and summoned, persist its latest state back into the tool
+    private static void persistSummonedMountByStoredIdIfPresent(ServerPlayerEntity player, ItemStack summonTool) {
+        if (player == null || summonTool == null || summonTool.isEmpty()) return;
+        NbtComponent custom = summonTool.get(DataComponentTypes.CUSTOM_DATA);
+        if (custom == null) return;
+        NbtCompound comp = custom.copyNbt();
+        String toolId = com.tabletmc.echo_summon.util.NbtUtils.getString(comp, ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
+        java.util.Optional<NbtCompound> opt = comp.getCompound(ModConstants.STORED_MOUNT_KEY);
+        if (toolId.isEmpty() || opt.isEmpty() || opt.get().isEmpty()) return;
+        String storedIdStr = com.tabletmc.echo_summon.util.NbtUtils.getString(opt.get(), ModConstants.STORED_MOUNT_ID_KEY);
+        if (storedIdStr.isEmpty()) return;
+        var server = player.getServer();
+        if (server == null) return;
+        try {
+            java.util.UUID uuid = java.util.UUID.fromString(storedIdStr);
+            for (ServerWorld w : server.getWorlds()) {
+                Entity e = w.getEntity(uuid);
+                if (e instanceof LivingEntity living && living.getCommandTags().contains(ModConstants.SUMMON_TAG)) {
+                    persistSaddleSummonedMountToTool(player, summonTool, living, toolId);
+                    break;
+                }
+            }
+        } catch (IllegalArgumentException ignored) {}
+    }
+private static String mapEntityTypeToModelKey(String id) {
         if (id == null || id.isEmpty()) return "";
         return switch (id) {
             case "minecraft:horse" -> "echo_summon:horse";
@@ -1120,3 +1223,5 @@ public class ServerNetworking {
         };
     }
 }
+
+

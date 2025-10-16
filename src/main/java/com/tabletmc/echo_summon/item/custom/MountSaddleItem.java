@@ -104,7 +104,7 @@ public class MountSaddleItem extends Item {
                 .model(assetKey)
                 .allowedEntities(entityType)
                 .equipOnInteract(true)
-                .canBeSheared(true)
+                .canBeSheared(false)
                 .build();
     }
 
@@ -114,7 +114,7 @@ public class MountSaddleItem extends Item {
                 .model(assetKey)
                 .allowedEntities(allowedEntities)
                 .equipOnInteract(true)
-                .canBeSheared(true)
+                .canBeSheared(false)
                 .build();
     }
 

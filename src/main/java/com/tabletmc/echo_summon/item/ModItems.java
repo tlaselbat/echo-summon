@@ -1,7 +1,6 @@
 package com.tabletmc.echo_summon.item;
 
 import com.tabletmc.echo_summon.ModConstants;
-import com.tabletmc.echo_summon.item.custom.HarnessSummonToolItem;
 import com.tabletmc.echo_summon.item.custom.MountHarnessItem;
 import com.tabletmc.echo_summon.item.custom.MountSaddleItem;
 import com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem;
@@ -35,14 +34,6 @@ public class ModItems  {
                             .fireproof()
             )
     );
-    public static final Item HARNESS_SUMMON_TOOL = registerModItems("harness_summon_tool",
-            new HarnessSummonToolItem(
-                    new Item.Settings()
-                            .registryKey(RegistryKey.of(RegistryKeys.ITEM, ModConstants.Id("harness_summon_tool")))
-                            .maxCount(1)
-                            .fireproof()
-            )
-    );
     public static final Item MOUNT_HARNESS = registerModItems("mount_harness",
             new MountHarnessItem(
                     new Item.Settings()
@@ -58,7 +49,7 @@ public class ModItems  {
         entries.add(SADDLE_SUMMON_TOOL);
         // Add the Mount Saddle item to the item group
         entries.addAfter(Items.SADDLE, MOUNT_SADDLE);
-        // Make harness summon tool obsolete by not listing it in the creative tab
+        // Harness summon tool obsolete: do not list
         // Still list Mount Harness for testing/utility
         entries.addAfter(MOUNT_SADDLE, MOUNT_HARNESS);
     }

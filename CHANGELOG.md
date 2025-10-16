@@ -1,5 +1,20 @@
 Echo Summon Changelog
 ======================
+Date: 2025-10-15
+
+Summary of Changes
+------------------
+1. Locked the Mount Saddle to its mount when closing the horse screen by purging extracted saddles, preserving their NBT, and re-equipping the mount in `src/main/java/com/tabletmc/echo_summon/mixin/server/HorseScreenHandlerMixin.java`.
+2. Prevented removing the Mount Saddle with shears by setting `.canBeSheared(false)` for both equippable components in `src/main/java/com/tabletmc/echo_summon/item/custom/MountSaddleItem.java`.
+3. Ensured released mounts keep their bound saddle by reconstructing or sanitizing it in-place within `src/main/java/com/tabletmc/echo_summon/net/ServerNetworking.java`.
+4. Persisted donkey and mule chest inventories when auto-dismissed, explicitly dismissed, or released by syncing live mount NBT back into the saddle summon tool in `src/main/java/com/tabletmc/echo_summon/net/ServerNetworking.java` and `src/main/java/com/tabletmc/echo_summon/mixin/server/ServerPlayerMixin.java`.
+5. Reset saddle summon tool metadata and cleared summon tags during release so the tool can capture new mounts immediately while keeping custom model data accurate in `src/main/java/com/tabletmc/echo_summon/net/ServerNetworking.java`.
+
+Open Follow-ups
+---------------
+- **[Automated coverage]** Add an integration or gameplay test that exercises capture → summon → modify inventory → dismiss/release to guard against regressions.
+  - **[UX polish]** Evaluate whether the summon tool should provide tooltip feedback when it no longer contains a stored mount after release.
+
 Date: 2025-10-14
 
 Summary of Changes
