@@ -40,8 +40,6 @@ import java.util.function.Function;
  * Handles server-side networking for the mod.
  */
 public class ServerNetworking {
-
-    private static final TagKey<EntityType<?>> ALLOWED_MOUNTS_TAG = TagKey.of(RegistryKeys.ENTITY_TYPE, ModConstants.Id(ModConstants.ALLOWED_MOUNTS_TAG_PATH));
     private static final TagKey<EntityType<?>> HARNESS_ALLOWED_MOUNTS_TAG = TagKey.of(RegistryKeys.ENTITY_TYPE, ModConstants.Id(ModConstants.HARNESS_ALLOWED_MOUNTS_TAG_PATH));
     private static final String SADDLE_TOOL_TAG_PREFIX = ModConstants.MOD_ID + ":saddle_tool:";
 
@@ -122,7 +120,7 @@ public class ServerNetworking {
                     player.sendMessage(Text.literal("Target is not valid"));
                     return;
                 }
-                if (!living.getType().isIn(ALLOWED_MOUNTS_TAG)) {
+                if (!ModConstants.isSaddleAllowed(living.getType())) {
                     player.sendMessage(Text.literal("That entity cannot be stored"));
                     return;
                 }
@@ -267,7 +265,7 @@ public class ServerNetworking {
                         SpawnReason.LOAD,
                         Function.identity()
                 );
-                if (!(loaded instanceof LivingEntity mount) || !loaded.getType().isIn(ALLOWED_MOUNTS_TAG)) {
+                if (!(loaded instanceof LivingEntity mount) || !ModConstants.isSaddleAllowed(loaded.getType())) {
                     player.sendMessage(Text.literal("Stored entity is invalid"));
                     return;
                 }
@@ -358,7 +356,7 @@ public class ServerNetworking {
                         SpawnReason.LOAD,
                         Function.identity()
                 );
-                if (!(loaded instanceof LivingEntity mount) || !loaded.getType().isIn(ALLOWED_MOUNTS_TAG)) {
+                if (!(loaded instanceof LivingEntity mount) || !ModConstants.isSaddleAllowed(loaded.getType())) {
                     player.sendMessage(Text.literal("Stored entity is invalid"));
                     return;
                 }

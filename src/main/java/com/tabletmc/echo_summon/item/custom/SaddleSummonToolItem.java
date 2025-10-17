@@ -20,7 +20,6 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
 public class SaddleSummonToolItem extends Item {
-    private static final TagKey<EntityType<?>> ALLOWED_MOUNTS_TAG = TagKey.of(RegistryKeys.ENTITY_TYPE, ModConstants.Id(ModConstants.ALLOWED_MOUNTS_TAG_PATH));
     private static final TagKey<EntityType<?>> HARNESS_ALLOWED_MOUNTS_TAG = TagKey.of(RegistryKeys.ENTITY_TYPE, ModConstants.Id(ModConstants.HARNESS_ALLOWED_MOUNTS_TAG_PATH));
     public SaddleSummonToolItem(Settings settings) {
         super(settings);
@@ -77,7 +76,7 @@ public class SaddleSummonToolItem extends Item {
         if (!user.getWorld().isClient) {
             // Consume interaction server-side to prevent vanilla mounting/GUI when capture would proceed
             boolean coolingDown = user.getItemCooldownManager().isCoolingDown(stack);
-            boolean allowedSaddle = entity.getType().isIn(ALLOWED_MOUNTS_TAG);
+            boolean allowedSaddle = ModConstants.isSaddleAllowed(entity.getType());
             boolean allowedHarness = entity.getType().isIn(HARNESS_ALLOWED_MOUNTS_TAG);
             boolean empty = !hasStoredMount(stack);
             if (!coolingDown && empty && (allowedSaddle || allowedHarness)) {
@@ -88,7 +87,7 @@ public class SaddleSummonToolItem extends Item {
         if (user.getItemCooldownManager().isCoolingDown(stack)) return ActionResult.PASS;
         if (hasStoredMount(stack)) return ActionResult.PASS;
         boolean isHarness = entity.getType().isIn(HARNESS_ALLOWED_MOUNTS_TAG);
-        boolean isSaddle = entity.getType().isIn(ALLOWED_MOUNTS_TAG);
+        boolean isSaddle = ModConstants.isSaddleAllowed(entity.getType());
         if (!isHarness && !isSaddle) return ActionResult.PASS;
         // Server validates anti-dupe; client just sends request with UUID
         if (isHarness) {

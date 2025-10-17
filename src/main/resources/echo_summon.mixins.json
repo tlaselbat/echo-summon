@@ -2,6 +2,7 @@
   "required": true,
   "package": "com.tabletmc.echo_summon.mixin",
   "compatibilityLevel": "JAVA_21",
+  "refmap": "echo_summon.refmap.json",
   "mixins": [
     "server.AbstractHorseEntityMixin",
     "server.EntityMixin",

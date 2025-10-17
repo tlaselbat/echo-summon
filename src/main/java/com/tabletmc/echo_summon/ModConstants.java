@@ -1,14 +1,16 @@
 package com.tabletmc.echo_summon;
 
+import net.minecraft.entity.EntityType;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Set;
 
 public class ModConstants {
 
     public static final String MOD_ID = "echo_summon";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static Identifier Id(String path) {
+    public static final Identifier Id(String path) {
         return Identifier.of(MOD_ID, path);
     }
     public static boolean summonCooldown = false;
@@ -47,6 +49,22 @@ public class ModConstants {
 
     // Convenience identifier for the happy ghast entity id
     public static final Identifier HAPPY_GHAST_ID = Identifier.of("minecraft", "happy_ghast");
+
+    // Hardcoded list of entity IDs allowed for the saddle summon tool
+    public static final Set<Identifier> SADDLE_ALLOWED_IDS = Set.of(
+            Identifier.of("minecraft", "camel"),
+            Identifier.of("minecraft", "horse"),
+            Identifier.of("minecraft", "donkey"),
+            Identifier.of("minecraft", "mule"),
+            Identifier.of("minecraft", "skeleton_horse"),
+            Identifier.of("minecraft", "zombie_horse"),
+            Identifier.of("minecraft", "happy_ghast")
+    );
+
+    public static boolean isSaddleAllowed(EntityType<?> type) {
+        Identifier id = EntityType.getId(type);
+        return id != null && SADDLE_ALLOWED_IDS.contains(id);
+    }
 
     public static final String ALLOWED_MOUNTS_TAG_PATH = "saddle_summon_tool_allowed_mounts";
     public static final String HARNESS_ALLOWED_MOUNTS_TAG_PATH = "harness_summon_tool_allowed_mounts";
