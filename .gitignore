@@ -39,3 +39,5 @@ replay_*.log
 *.jfr
 .windsurf/
 .windsurf-ignore/
+*.ps1
+docs/*

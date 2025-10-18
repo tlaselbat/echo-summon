@@ -49,6 +49,7 @@ public final class SpawnAllowedMountsCommand {
     private SpawnAllowedMountsCommand() {}
 
     private static final String TEST_COMMAND_TAG = "echo_summon:test_saddle_summon_tool_spawn";
+    private static final String UNIVERSAL_TEST_TAG = "echo_summon:test_command";
     private static final String TEST_RUN_ID_KEY = "echo_summon:test_saddle_summon_tool_run";
     private static final Set<UUID> TRACKED_ENTITY_IDS = new HashSet<>();
     private static final Set<UUID> ACTIVE_RUN_IDS = new HashSet<>();
@@ -60,11 +61,13 @@ public final class SpawnAllowedMountsCommand {
     }
 
     private static LiteralArgumentBuilder<ServerCommandSource> buildCommand(CommandRegistryAccess registryAccess) {
-        return CommandManager.literal("test_saddle_summon_tool")
+        return CommandManager.literal("echo_summon")
                 .requires(src -> src.hasPermissionLevel(2))
-                .executes(SpawnAllowedMountsCommand::executeAll)
-                .then(CommandManager.argument("pos", BlockPosArgumentType.blockPos())
-                        .executes(ctx -> executeAllAtPos(ctx, BlockPosArgumentType.getBlockPos(ctx, "pos"))));
+                // no root executor; '/echo_summon' alone does nothing
+                .then(CommandManager.literal("kill").executes(SpawnAllowedMountsCommand::killUniversal))
+                .then(CommandManager.literal("test")
+                        .then(CommandManager.argument("pos", BlockPosArgumentType.blockPos())
+                                .executes(ctx -> executeAllAtPos(ctx, BlockPosArgumentType.getBlockPos(ctx, "pos")))));
     }
 
     private static int execute(CommandContext<ServerCommandSource> ctx) {
@@ -259,6 +262,21 @@ public final class SpawnAllowedMountsCommand {
         totalSpawned += spawnRow.apply(row2Offset, true);  // row 2: saddled
 
         int total = totalSpawned;
+        // Always give 15 summon tools (tagged)
+        try {
+            for (int i = 0; i < 15; i++) {
+                ItemStack tool = new ItemStack(ModItems.SADDLE_SUMMON_TOOL);
+                markStackWithRunId(tool, runId);
+                // add universal tag
+                try {
+                    NbtComponent custom = tool.get(DataComponentTypes.CUSTOM_DATA);
+                    net.minecraft.nbt.NbtCompound nbt = custom != null ? custom.copyNbt() : new net.minecraft.nbt.NbtCompound();
+                    nbt.putBoolean(UNIVERSAL_TEST_TAG, true);
+                    tool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+                } catch (Throwable ignored) {}
+                player.giveItemStack(tool);
+            }
+        } catch (Throwable ignored) {}
         src.sendFeedback(() -> Text.literal("Spawned 2 rows (default, saddled): total " + total + "."), false);
         return total;
     }
@@ -349,6 +367,21 @@ public final class SpawnAllowedMountsCommand {
         totalSpawned += spawnRow.apply(row2Offset, true);  // row 2: saddled
 
         int total = totalSpawned;
+        // Always give 15 summon tools (tagged)
+        try {
+            for (int i = 0; i < 15; i++) {
+                ItemStack tool = new ItemStack(ModItems.SADDLE_SUMMON_TOOL);
+                markStackWithRunId(tool, runId);
+                // add universal tag
+                try {
+                    NbtComponent custom = tool.get(DataComponentTypes.CUSTOM_DATA);
+                    net.minecraft.nbt.NbtCompound nbt = custom != null ? custom.copyNbt() : new net.minecraft.nbt.NbtCompound();
+                    nbt.putBoolean(UNIVERSAL_TEST_TAG, true);
+                    tool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+                } catch (Throwable ignored) {}
+                player.giveItemStack(tool);
+            }
+        } catch (Throwable ignored) {}
         src.sendFeedback(() -> Text.literal("Spawned 2 rows (default, saddled): total " + total + "."), false);
         return total;
     }
@@ -758,6 +791,7 @@ public final class SpawnAllowedMountsCommand {
         }
 
         entity.addCommandTag(TEST_COMMAND_TAG);
+        entity.addCommandTag(UNIVERSAL_TEST_TAG);
 
         if (world.spawnEntity(entity)) {
             TRACKED_ENTITY_IDS.add(entity.getUuid());
@@ -919,7 +953,71 @@ public final class SpawnAllowedMountsCommand {
         NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
         net.minecraft.nbt.NbtCompound compound = custom != null ? custom.copyNbt() : new net.minecraft.nbt.NbtCompound();
         compound.putString(TEST_RUN_ID_KEY, runId.toString());
+        // mark universal tag on items created by this command
+        compound.putBoolean(UNIVERSAL_TEST_TAG, true);
         stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(compound));
+    }
+
+    private static int killUniversal(CommandContext<ServerCommandSource> ctx) {
+        ServerCommandSource src = ctx.getSource();
+        MinecraftServer server = src.getServer();
+        int removedEntities = 0;
+        int removedItems = 0;
+
+        // Remove entities (including item entities) with the universal command tag
+        for (ServerWorld world : server.getWorlds()) {
+            java.util.List<Entity> toRemove = new java.util.ArrayList<>();
+            for (Entity e : world.iterateEntities()) {
+                try {
+                    if (e.getCommandTags().contains(UNIVERSAL_TEST_TAG)) {
+                        toRemove.add(e);
+                    } else if (e instanceof ItemEntity itemEntity) {
+                        if (hasUniversalTestTag(itemEntity.getStack())) {
+                            toRemove.add(e);
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            }
+            for (Entity e : toRemove) {
+                try {
+                    e.discard();
+                    removedEntities++;
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        // Remove tagged items from all player inventories
+        for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+            try {
+                var inv = p.getInventory();
+                for (int i = 0; i < inv.size(); i++) {
+                    ItemStack s = inv.getStack(i);
+                    if (hasUniversalTestTag(s)) {
+                        removedItems += s.getCount();
+                        inv.setStack(i, ItemStack.EMPTY);
+                    }
+                }
+                p.playerScreenHandler.sendContentUpdates();
+            } catch (Throwable ignored) {}
+        }
+
+        int total = removedEntities + removedItems;
+        if (total == 0) {
+            src.sendFeedback(() -> Text.literal("No entities or items with echo_summon:test_command found."), false);
+        } else {
+            final int fe = removedEntities;
+            final int fi = removedItems;
+            src.sendFeedback(() -> Text.literal("Removed " + fe + " entities and " + fi + " items with echo_summon:test_command."), false);
+        }
+        return total;
+    }
+
+    private static boolean hasUniversalTestTag(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (custom == null) return false;
+        net.minecraft.nbt.NbtCompound nbt = custom.copyNbt();
+        return nbt.contains(UNIVERSAL_TEST_TAG);
     }
 
     private static KillSummary killSpawned(ServerCommandSource src) {
@@ -1014,8 +1112,9 @@ public final class SpawnAllowedMountsCommand {
         if (storedOpt.isEmpty()) {
             return false;
         }
+        String stored = storedOpt.get();
         try {
-            UUID runId = UUID.fromString(storedOpt.get());
+            UUID runId = UUID.fromString(stored);
             return ACTIVE_RUN_IDS.contains(runId);
         } catch (IllegalArgumentException ignored) {
             return false;
