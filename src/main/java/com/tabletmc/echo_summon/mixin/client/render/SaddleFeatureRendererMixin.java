@@ -64,11 +64,15 @@ public abstract class SaddleFeatureRendererMixin {
     private static final Map<String, Identifier> HORSE_COLOR_TEXTURES = new java.util.HashMap<>();
     private static final Map<String, Identifier> HORSE_MARKING_TEXTURES = new java.util.HashMap<>();
 
+    // Reflection handles for translucent Z-offset layers (not present on all mappings)
+    private static java.lang.reflect.Method TRANSLUCENT_CULL_Z_OFFSET_METHOD;
+    private static java.lang.reflect.Method TRANSLUCENT_Z_OFFSET_METHOD;
+
     static {
       // Saddle overlays (asset IDs must match equipment asset JSON IDs = path under assets/.../equipment/)
       putSaddle(EquipmentModel.LayerType.HORSE_SADDLE,   "entity/horse_saddle_item/horse_saddle_item");
       putSaddle(EquipmentModel.LayerType.DONKEY_SADDLE,  "entity/donkey_saddle_item/donkey_saddle_item");
-      putSaddle(EquipmentModel.LayerType.MULE_SADDLE,    "entity/mule_saddle_item/mule_saddle_item");
+      putSaddle(EquipmentModel.LayerType.MULE_SADDLE,    "entity/muleas_saddle_item/mule_saddle_item");
       putSaddle(EquipmentModel.LayerType.SKELETON_HORSE_SADDLE, "entity/skeleton_saddle_item/skeleton_saddle_item");
       putSaddle(EquipmentModel.LayerType.ZOMBIE_HORSE_SADDLE,   "entity/zombie_saddle_item/zombie_saddle_item");
       putSaddle(EquipmentModel.LayerType.CAMEL_SADDLE,   "entity/camel_saddle_item/camel_saddle_item");
@@ -174,6 +178,71 @@ public abstract class SaddleFeatureRendererMixin {
             // Fallback if ZOffset layer is unavailable on this environment
             VertexConsumer base = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCull(texture));
             model.render(matrices, base, light, OverlayTexture.DEFAULT_UV);
+        }
+    }
+
+    // Prefer a translucent Z-offset layer when available to avoid z-fighting with the base coat
+    private void renderTranslucentZOffsetBody(EntityModel<LivingEntityRenderState> model,
+                                              MatrixStack matrices,
+                                              VertexConsumerProvider vertexConsumers,
+                                              int light,
+                                              Identifier texture) {
+        RenderLayer layer = getTranslucentZOffsetLayer(texture);
+        VertexConsumer base = vertexConsumers.getBuffer(layer);
+        model.render(matrices, base, light, OverlayTexture.DEFAULT_UV);
+    }
+
+    // Attempts to call RenderLayer.getEntityTranslucentCullZOffset or getEntityTranslucentZOffset reflectively.
+    // Falls back to standard translucent if unavailable on this version/mapping.
+    private static RenderLayer getTranslucentZOffsetLayer(Identifier texture) {
+        try {
+            if (TRANSLUCENT_CULL_Z_OFFSET_METHOD == null) {
+                try {
+                    TRANSLUCENT_CULL_Z_OFFSET_METHOD = RenderLayer.class.getMethod("getEntityTranslucentCullZOffset", Identifier.class);
+                } catch (Throwable ignored) {}
+            }
+            if (TRANSLUCENT_CULL_Z_OFFSET_METHOD != null) {
+                Object layer = TRANSLUCENT_CULL_Z_OFFSET_METHOD.invoke(null, texture);
+                if (layer instanceof RenderLayer rl) return rl;
+            }
+
+            if (TRANSLUCENT_Z_OFFSET_METHOD == null) {
+                try {
+                    TRANSLUCENT_Z_OFFSET_METHOD = RenderLayer.class.getMethod("getEntityTranslucentZOffset", Identifier.class);
+                } catch (Throwable ignored) {}
+            }
+            if (TRANSLUCENT_Z_OFFSET_METHOD != null) {
+                Object layer = TRANSLUCENT_Z_OFFSET_METHOD.invoke(null, texture);
+                if (layer instanceof RenderLayer rl) return rl;
+            }
+        } catch (Throwable ignored) {
+        }
+        return RenderLayer.getEntityTranslucent(texture);
+    }
+
+    // For markings prone to distance flicker, use targeted strategies per variant:
+    // - white: cutout Z-offset pre-pass then translucent Z-offset (stability + soft edges)
+    // - black_dots: translucent Z-offset only (preserve semi-transparency), but slightly stronger scale
+    // - others: translucent Z-offset only
+    private void renderMarkingLayer(EntityModel<LivingEntityRenderState> model,
+                                    MatrixStack matrices,
+                                    VertexConsumerProvider vertexConsumers,
+                                    int light,
+                                    Identifier texture,
+                                    String markingKey) {
+        boolean isBlackDots = "black_dots".equals(markingKey) || "blackdots".equals(markingKey);
+        boolean isWhite = "white".equals(markingKey);
+
+        if (isBlackDots) {
+            // Preserve semi-transparency: avoid cutout. Slightly increase separation for stability.
+            matrices.scale(1.0015F, 1.0015F, 1.0015F);
+            renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, texture);
+        } else if (isWhite) {
+            // Depth-stabilizing pre-pass, then translucent smoothing.
+            renderCutoutZOffsetBody(model, matrices, vertexConsumers, light, texture);
+            renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, texture);
+        } else {
+            renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, texture);
         }
     }
 
@@ -311,8 +380,8 @@ public abstract class SaddleFeatureRendererMixin {
                 // Slight scale-up to ensure the overlay sits just above the coat in depth, avoiding occlusion
                 matrices.push();
                 matrices.scale(1.0005F, 1.0005F, 1.0005F);
-                // Use translucent to preserve semi-transparency in vanilla marking textures
-                renderTranslucentBody(model, matrices, vertexConsumers, light, mappedMarking, false);
+                // Use best-fit layer strategy for this specific marking key
+                renderMarkingLayer(model, matrices, vertexConsumers, light, mappedMarking, marking);
                 matrices.pop();
                 renderedMarking = true;
             }
@@ -324,8 +393,8 @@ public abstract class SaddleFeatureRendererMixin {
                         ModConstants.LOGGER.info("Echo Summon: rendering horse marking '{}' with texture {}", marking, texPath);
                         matrices.push();
                         matrices.scale(1.0005F, 1.0005F, 1.0005F);
-                        // Use translucent to preserve semi-transparency
-                        renderTranslucentBody(model, matrices, vertexConsumers, light, texPath, false);
+                        // Use best-fit layer strategy for this specific marking key
+                        renderMarkingLayer(model, matrices, vertexConsumers, light, texPath, marking);
                         matrices.pop();
                         renderedMarking = true;
                         break;
