@@ -227,10 +227,9 @@ public final class SpawnAllowedMountsCommand {
 
         // Basis vectors and row offsets
         Vec3d base = player.getPos();
-        float playerYaw = player.getYaw();
-        float yawRadians = playerYaw * ((float) Math.PI / 180.0F);
-        Vec3d forward = new Vec3d(-MathHelper.sin(yawRadians), 0.0, MathHelper.cos(yawRadians));
-        Vec3d right = new Vec3d(MathHelper.cos(yawRadians), 0.0, MathHelper.sin(yawRadians));
+        // Default orientation: West (-X). Ignore player orientation.
+        Vec3d forward = new Vec3d(-1.0, 0.0, 0.0);
+        Vec3d right = new Vec3d(0.0, 0.0, 1.0);
         double rowSpacing = 12.0;
         Vec3d row1Offset = forward.multiply(2.0);
         Vec3d row2Offset = forward.multiply(2.0 + rowSpacing);
@@ -332,10 +331,9 @@ public final class SpawnAllowedMountsCommand {
 
         // Basis vectors and row offsets
         Vec3d base = new Vec3d(origin.getX() + 0.5, origin.getY(), origin.getZ() + 0.5);
-        float playerYaw = player.getYaw();
-        float yawRadians = playerYaw * ((float) Math.PI / 180.0F);
-        Vec3d forward = new Vec3d(-MathHelper.sin(yawRadians), 0.0, MathHelper.cos(yawRadians));
-        Vec3d right = new Vec3d(MathHelper.cos(yawRadians), 0.0, MathHelper.sin(yawRadians));
+        // Default orientation: West (-X). Ignore player orientation.
+        Vec3d forward = new Vec3d(-1.0, 0.0, 0.0);
+        Vec3d right = new Vec3d(0.0, 0.0, 1.0);
         double rowSpacing = 12.0;
         Vec3d row1Offset = forward.multiply(2.0);
         Vec3d row2Offset = forward.multiply(2.0 + rowSpacing);
@@ -752,7 +750,8 @@ public final class SpawnAllowedMountsCommand {
             }
         } catch (Throwable ignored) {}
         Vec3d spawnPos = new Vec3d(desiredPos.x, spawnY, desiredPos.z);
-        float yaw = MathHelper.wrapDegrees(player.getYaw() + 180.0F);
+        // Face West (-X) so spawns are shoulder-to-shoulder and not facing the player
+        float yaw = 90.0F;
 
         entity.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, yaw, 0f);
         entity.setYaw(yaw);

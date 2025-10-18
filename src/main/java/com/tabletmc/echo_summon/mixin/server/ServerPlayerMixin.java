@@ -79,11 +79,8 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
 
     @Override
     public void storeMount(AnimalEntity mount) {
-        if (storedHorse != null && !storedHorse.getUuid().equals(mount.getUuid())) {
-            sendMessage(Text.of("[echo_summon]: Replaced Old Horse"), false);
-            summonMount(false);
-        }
-
+        // Do not auto-summon or replace the previously stored horse.
+        // Simply update the stored reference to the current mount.
         if (mount.getRemovalReason() != null) {
             storedHorse = null;
         } else {
@@ -91,19 +88,7 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         }
     }
 
-    /**
-     * Injects a method that is called when the player starts riding an entity.
-     *
-     * @param entity The entity that the player is riding.
-     * @param force  Whether the player is forced to start riding.
-     * @param cir    The callback info for the method injection.
-     */
-    @Inject(method = "startRiding", at = @At("TAIL"), require = 0)
-    public void startRiding(Entity entity, boolean force, CallbackInfoReturnable<Boolean> cir) {
-        if (entity instanceof AnimalEntity horse && ((MountSaddleMountImpl) horse).hasMountSaddle()) {
-            storeMount(horse);
-        }
-    }
+    // Removed: auto-store on startRiding. Mounts should only be stored when right-clicked with an empty saddle_summon_tool.
 
     @Inject(method = "dropSelectedItem", at = @At("HEAD"), cancellable = true)
     private void echo_summon$preventSaddleDrop(boolean dropEntireStack, CallbackInfoReturnable<Boolean> cir) {

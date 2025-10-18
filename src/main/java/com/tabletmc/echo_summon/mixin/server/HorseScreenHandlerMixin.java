@@ -7,6 +7,7 @@ import com.tabletmc.echo_summon.impl.ServerPlayerEntityImpl;
 import com.tabletmc.echo_summon.item.ModItems;
 import com.tabletmc.echo_summon.item.custom.MountSaddleItem;
 import com.tabletmc.echo_summon.util.NbtUtils;
+import com.tabletmc.echo_summon.item.custom.SaddleSummonToolItem;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.EquipmentSlot;
@@ -93,15 +94,25 @@ public abstract class HorseScreenHandlerMixin {
             }
         }
 
+        // If the player is the owner with a matching saddle summon tool and we did not
+        // preserve a saddle from the GUI, synthesize data from the tool to re-equip.
+        if (preservedSaddleData == null && player != null) {
+            NbtCompound toolData = echo_summon$findToolSaddleDataForMount(player, this.entity);
+            if (toolData != null && !toolData.isEmpty()) {
+                preservedSaddleData = toolData;
+            }
+        }
+
         EquipmentSlot saddleSlot = MountSaddleItem.resolveSlot(this.entity.getType());
         if (saddleSlot != null) {
             ItemStack equipped = this.entity.getEquippedStack(saddleSlot);
             if (!equipped.isOf(ModItems.MOUNT_SADDLE)) {
-                ItemStack saddle = new ItemStack(ModItems.MOUNT_SADDLE);
-                MountSaddleItem.applyEquippable(saddle, this.entity.getType());
+                // Only re-equip a mount saddle if we actually found a previously linked one
+                if (preservedSaddleData != null) {
+                    ItemStack saddle = new ItemStack(ModItems.MOUNT_SADDLE);
+                    MountSaddleItem.applyEquippable(saddle, this.entity.getType());
 
-                NbtCompound data = preservedSaddleData != null ? preservedSaddleData : echo_summon$buildDefaultSaddleData(this.entity);
-                if (data != null) {
+                    NbtCompound data = preservedSaddleData;
                     if (!data.contains("mount_type")) {
                         var typeId = EntityType.getId(this.entity.getType());
                         if (typeId != null) {
@@ -109,9 +120,9 @@ public abstract class HorseScreenHandlerMixin {
                         }
                     }
                     saddle.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(data));
-                }
 
-                this.entity.equipStack(saddleSlot, saddle);
+                    this.entity.equipStack(saddleSlot, saddle);
+                }
             } else if (preservedSaddleData != null) {
                 ItemStack refreshed = equipped.copy();
                 refreshed.setCount(1);
@@ -125,19 +136,18 @@ public abstract class HorseScreenHandlerMixin {
                 this.entity.equipStack(saddleSlot, refreshed);
             }
 
+            // Only set the saddled flag if a valid SADDLE-slot equippable is actually present
             if (saddleSlot == EquipmentSlot.SADDLE && this.entity instanceof SaddleableMountImpl saddleable) {
-                saddleable.echo_summon$setSaddled(true);
+                ItemStack nowEquipped = this.entity.getEquippedStack(saddleSlot);
+                var eq = nowEquipped.get(DataComponentTypes.EQUIPPABLE);
+                if (eq != null && eq.slot() == EquipmentSlot.SADDLE) {
+                    saddleable.echo_summon$setSaddled(true);
+                }
             }
         }
 
         if (entity instanceof HorseEntity horse) {
             ((MountSaddleMountImpl) horse).updateMountSaddle();
-
-            if (player instanceof ServerPlayerEntity serverPlayer) {
-                if (horse.equals(serverPlayer.getVehicle()) && ((MountSaddleMountImpl) horse).hasMountSaddle()) {
-                    ((ServerPlayerEntityImpl) serverPlayer).storeMount(horse);
-                }
-            }
         }
     }
 
@@ -168,5 +178,43 @@ public abstract class HorseScreenHandlerMixin {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    @Unique
+    private static NbtCompound echo_summon$findToolSaddleDataForMount(PlayerEntity player, AbstractHorseEntity entity) {
+        if (player == null || entity == null) return null;
+        String mountId = entity.getUuidAsString();
+        try {
+            var inv = player.getInventory();
+            for (int i = 0; i < inv.size(); i++) {
+                ItemStack s = inv.getStack(i);
+                if (!(s.getItem() instanceof SaddleSummonToolItem)) continue;
+                NbtComponent custom = s.get(DataComponentTypes.CUSTOM_DATA);
+                if (custom == null) continue;
+                NbtCompound comp = custom.copyNbt();
+                java.util.Optional<NbtCompound> storedOpt = comp.getCompound(ModConstants.STORED_MOUNT_KEY);
+                if (storedOpt.isEmpty()) continue;
+                NbtCompound stored = storedOpt.get();
+                String storedId = NbtUtils.getString(stored, ModConstants.STORED_MOUNT_ID_KEY);
+                if (!mountId.equals(storedId)) continue;
+
+                // Prefer stored mount_saddle_data from the tool; otherwise synthesize
+                NbtCompound toolSaddle = stored.getCompound(ModConstants.MOUNT_SADDLE_DATA_KEY).filter(n -> !n.isEmpty()).orElse(null);
+                NbtCompound data = toolSaddle != null ? toolSaddle.copy() : new NbtCompound();
+                if (!data.contains(ModConstants.STORED_MOUNT_ID_KEY)) {
+                    data.putString(ModConstants.STORED_MOUNT_ID_KEY, mountId);
+                }
+                if (!data.contains("mount_type")) {
+                    var typeId = EntityType.getId(entity.getType());
+                    if (typeId != null) data.putString("mount_type", typeId.toString());
+                }
+                String toolId = NbtUtils.getString(comp, ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
+                if (!toolId.isEmpty()) {
+                    data.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, toolId);
+                }
+                return data;
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 }

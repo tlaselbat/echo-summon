@@ -14,12 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class PlayerManagerMixin {
     @Inject(method="respawnPlayer", at=@At("RETURN"))
     public void respawnPlayer(ServerPlayerEntity player, boolean alive, Entity.RemovalReason removalReason, CallbackInfoReturnable<ServerPlayerEntity> cir) {
-        try {
-            AnimalEntity mount = ((ServerPlayerEntityImpl) player).getHorse();
-            if (mount != null) {
-                ((ServerPlayerEntityImpl) cir.getReturnValue()).storeMount(mount); // Transfer horse data to respawned player
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }   }
+        // Removed: do not auto-store or transfer mount state on respawn.
+    }
 }

@@ -275,6 +275,7 @@ public class ServerNetworking {
                         ahe2.setTame(true);
                     } catch (Throwable ignored) {}
                 }
+                try { mount.setHealth(mount.getMaxHealth()); } catch (Throwable ignored) {}
                 mount.fallDistance = player.fallDistance;
                 mount.refreshPositionAndAngles(player.getX(), player.getY(), player.getZ(), player.getYaw(), player.getPitch());
                 mount.setVelocity(player.getVelocity());
@@ -372,53 +373,14 @@ public class ServerNetworking {
                 Vec3d look = player.getRotationVec(1.0F).normalize();
                 Vec3d spawnPos = findSafeSpawnPosition(player, look, 3.0, 5.0);
                 mount.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, player.getYaw(), player.getPitch());
-
-                // Keep mount saddle bound to the mount (non-removable)
+                // On release: ensure the mount does NOT keep the Echo mount saddle and do not give a new one
                 EquipmentSlot slot = MountSaddleItem.resolveSlot(mount.getType());
                 EquipmentSlot equipSlot = slot != null ? slot : EquipmentSlot.SADDLE;
                 ItemStack saddleSlot = mount.getEquippedStack(equipSlot);
-                if (!saddleSlot.isOf(ModItems.MOUNT_SADDLE)) {
-                    java.util.Optional<NbtCompound> saddleDataOpt = stored.getCompound("mount_saddle_data");
-                    NbtCompound saddleData = saddleDataOpt.filter(data -> !data.isEmpty()).orElseGet(NbtCompound::new);
-                    if (!saddleData.contains("mount_type")) {
-                        saddleData.putString("mount_type", EntityType.getId(mount.getType()).toString());
-                    }
-                    saddleData.remove(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
-                    ItemStack mountSaddle = new ItemStack(ModItems.MOUNT_SADDLE);
-                    MountSaddleItem.applyEquippable(mountSaddle, mount.getType());
-                    if (!saddleData.isEmpty()) {
-                        mountSaddle.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(saddleData));
-                    }
-                    mount.equipStack(equipSlot, mountSaddle);
-                    saddleSlot = mount.getEquippedStack(equipSlot);
-                } else {
-                    NbtComponent existing = saddleSlot.get(DataComponentTypes.CUSTOM_DATA);
-                    if (existing != null) {
-                        NbtCompound echoComp = existing.copyNbt();
-                        if (!echoComp.contains("mount_type")) {
-                            echoComp.putString("mount_type", EntityType.getId(mount.getType()).toString());
-                        }
-                        echoComp.remove(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY);
-                        saddleSlot.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(echoComp));
-                    }
+                if (saddleSlot.isOf(ModItems.MOUNT_SADDLE)) {
+                    mount.equipStack(equipSlot, ItemStack.EMPTY);
                 }
-
-                if (equipSlot == EquipmentSlot.SADDLE) {
-                    setSaddled(mount, true);
-                } else {
-                    // Fallback: create from stored mapping data if not equipped
-                    stored.getCompound("mount_saddle_data").ifPresent(saddleData -> {
-                        if (!saddleData.isEmpty()) {
-                            if (!saddleData.contains("mount_type")) {
-                                saddleData.putString("mount_type", EntityType.getId(mount.getType()).toString());
-                            }
-                            ItemStack mountSaddle = new ItemStack(ModItems.MOUNT_SADDLE);
-                            MountSaddleItem.applyEquippable(mountSaddle, mount.getType());
-                            mountSaddle.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(saddleData));
-                            player.giveItemStack(mountSaddle);
-                        }
-                    });
-                }
+                // Do NOT set saddled flag; vanilla/mixin logic will handle based on actual gear
                 
                 player.getWorld().spawnEntity(mount);
 
