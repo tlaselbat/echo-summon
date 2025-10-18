@@ -13,7 +13,8 @@
 	"environment": "*",
 	"entrypoints": {
 		"client": ["com.tabletmc.echo_summon.ClientInitializer"],
-		"main": ["com.tabletmc.echo_summon.ModInitializer"]
+		"main": ["com.tabletmc.echo_summon.ModInitializer"],
+		"modmenu": ["com.tabletmc.echo_summon.compat.ModMenuIntegration"]
 	},
 	"mixins": ["echo_summon.mixins.json"],
 	"depends": {

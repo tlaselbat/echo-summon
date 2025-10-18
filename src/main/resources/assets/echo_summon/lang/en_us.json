@@ -24,5 +24,12 @@
 
   "item.echo_summon.mount_harness.tooltip.basic": "Equip to supported mounts",
   "item.echo_summon.mount_harness.tooltip.mount_type": "Mount: %s",
-  "item.echo_summon.mount_harness.tooltip.linked_tool": "Linked to harness tool"
+  "item.echo_summon.mount_harness.tooltip.linked_tool": "Linked to harness tool",
+
+  "config.echo_summon.title": "Echo Summon Settings",
+  "config.echo_summon.category.general": "General",
+  "config.echo_summon.enableCustomMountBodyRendering": "Custom mount body overlays",
+  "config.echo_summon.enableCustomMountBodyRendering.tooltip": "Render Echo Summon body overlays on mounts (horse coat/marking layers, donkey/mule bodies, etc.). Disabling restores vanilla body rendering while keeping saddles visible.",
+  "config.echo_summon.enableMountBodyGlint": "Enchantment glint on mount body",
+  "config.echo_summon.enableMountBodyGlint.tooltip": "Apply the enchantment glint effect to the custom mount body overlays."
 }

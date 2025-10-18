@@ -1,5 +1,6 @@
 package com.tabletmc.echo_summon.mixin.client.render;
 import com.tabletmc.echo_summon.ModConstants;
+import com.tabletmc.echo_summon.config.EchoSummonConfig;
 import net.fabricmc.api.Environment;
 import net.fabricmc.api.EnvType;
 import net.minecraft.client.MinecraftClient;
@@ -187,6 +188,7 @@ public abstract class SaddleFeatureRendererMixin {
             float limbDistance,
             CallbackInfo ci
     ) {
+        boolean bodyEnabled = EchoSummonConfig.enableCustomMountBodyRendering;
         ItemStack saddleStack = this.saddleStackGetter.apply(renderState);
         if (saddleStack.isEmpty()) return;
 
@@ -203,39 +205,41 @@ public abstract class SaddleFeatureRendererMixin {
 
         EquippableComponent equippable = saddleStack.get(DataComponentTypes.EQUIPPABLE);
 
-        // Body overlay (species-specific when available)
-        EquipmentModel.LayerType bodyLayer = BODY_LAYER_BY_SADDLE.get(this.layerType);
-        Identifier baseTexture = BASE_BODY_TEXTURE.get(this.layerType);
-        if (bodyLayer != null) {
-            RegistryKey<EquipmentAsset> bodyAsset = BODY_ASSET_BY_SADDLE.get(this.layerType);
-            boolean isHorse = this.layerType == EquipmentModel.LayerType.HORSE_SADDLE;
+        // Body overlay (species-specific when available) — gated by config
+        if (bodyEnabled) {
+            EquipmentModel.LayerType bodyLayer = BODY_LAYER_BY_SADDLE.get(this.layerType);
+            Identifier baseTexture = BASE_BODY_TEXTURE.get(this.layerType);
+            if (bodyLayer != null) {
+                RegistryKey<EquipmentAsset> bodyAsset = BODY_ASSET_BY_SADDLE.get(this.layerType);
+                boolean isHorse = this.layerType == EquipmentModel.LayerType.HORSE_SADDLE;
 
-            // For non-horses, draw the base body asset; for horses, rely on our variant overlays instead
-            if (!isHorse && bodyAsset != null) {
-                this.equipmentRenderer.render(bodyLayer, bodyAsset, model, saddleStack, matrices, vertexConsumers, light);
-            }
+                // For non-horses, draw the base body asset; for horses, rely on our variant overlays instead
+                if (!isHorse && bodyAsset != null) {
+                    this.equipmentRenderer.render(bodyLayer, bodyAsset, model, saddleStack, matrices, vertexConsumers, light);
+                }
 
-            if (isHorse) {
-                // Overlay variant-specific textures when present (only applies to horses via instanceof check)
-                // Render on overlayModel (context model if available) so anchors match the base body
-                renderHorseVariantOverlays(overlayModel, matrices, vertexConsumers, light, renderState, saddleStack, baseTexture);
-            } else if (baseTexture != null && resourceExists(baseTexture)) {
-                renderTranslucentBody(overlayModel, matrices, vertexConsumers, light, baseTexture, false);
-            }
+                if (isHorse) {
+                    // Overlay variant-specific textures when present (only applies to horses via instanceof check)
+                    // Render on overlayModel (context model if available) so anchors match the base body
+                    renderHorseVariantOverlays(overlayModel, matrices, vertexConsumers, light, renderState, saddleStack, baseTexture);
+                } else if (baseTexture != null && resourceExists(baseTexture)) {
+                    renderTranslucentBody(overlayModel, matrices, vertexConsumers, light, baseTexture, false);
+                }
 
-            // Special-case donkey/mule chest state to overlay chested texture if present
-            Identifier chestedTex = getChestedBodyTextureIfPresent(this.layerType, renderState);
-            if (chestedTex != null) {
-                renderTranslucentBody(model, matrices, vertexConsumers, light, chestedTex, false);
-            }
-        } else {
-            if (baseTexture != null && resourceExists(baseTexture)) {
-                renderTranslucentBody(model, matrices, vertexConsumers, light, baseTexture, false);
+                // Special-case donkey/mule chest state to overlay chested texture if present
+                Identifier chestedTex = getChestedBodyTextureIfPresent(this.layerType, renderState);
+                if (chestedTex != null) {
+                    renderTranslucentBody(model, matrices, vertexConsumers, light, chestedTex, false);
+                }
+            } else {
+                if (baseTexture != null && resourceExists(baseTexture)) {
+                    renderTranslucentBody(model, matrices, vertexConsumers, light, baseTexture, false);
+                }
             }
         }
 
-        // Unified glint application: single pass for all mounts after body overlays (and before saddle overlay).
-        if (shouldApplyBodyGlint(saddleStack)) {
+        // Unified glint application: controlled by config
+        if (EchoSummonConfig.enableMountBodyGlint && bodyEnabled && shouldApplyBodyGlint(saddleStack)) {
             renderEntityGlintOnly(model, matrices, vertexConsumers, light, renderState);
         }
 
@@ -248,6 +252,7 @@ public abstract class SaddleFeatureRendererMixin {
         }
         this.equipmentRenderer.render(this.layerType, saddleAsset, model, saddleStack, matrices, vertexConsumers, light);
 
+        // We handled rendering for this layer, prevent vanilla duplicate
         ci.cancel();
     }
 
