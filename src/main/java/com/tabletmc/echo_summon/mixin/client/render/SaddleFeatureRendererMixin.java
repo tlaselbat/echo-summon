@@ -6,9 +6,9 @@ import net.fabricmc.api.EnvType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumers;
+import net.minecraft.client.render.VertexConsumerProvider;
+
 import net.minecraft.client.render.entity.feature.SaddleFeatureRenderer;
 import net.minecraft.client.render.entity.equipment.EquipmentModel;
 import net.minecraft.client.render.entity.equipment.EquipmentRenderer;
@@ -62,7 +62,6 @@ public abstract class SaddleFeatureRendererMixin {
     private static final Map<EquipmentModel.LayerType, RegistryKey<EquipmentAsset>> BODY_ASSET_BY_SADDLE = new EnumMap<>(EquipmentModel.LayerType.class);
     private static final Map<EquipmentModel.LayerType, Identifier> BASE_BODY_TEXTURE = new EnumMap<>(EquipmentModel.LayerType.class);
     private static final Map<String, Identifier> HORSE_COLOR_TEXTURES = new java.util.HashMap<>();
-    private static final Map<String, Identifier> HORSE_MARKING_TEXTURES = new java.util.HashMap<>();
 
     // Reflection handles for translucent Z-offset layers (not present on all mappings)
     private static java.lang.reflect.Method TRANSLUCENT_CULL_Z_OFFSET_METHOD;
@@ -106,24 +105,12 @@ public abstract class SaddleFeatureRendererMixin {
       registerHorseColor("black", "horse_mount_body_color_black.png");
       registerHorseColor("gray", "horse_mount_body_color_gray.png");
       registerHorseColor("dark_brown", "horse_mount_body_color_darkbrown.png");
-
-      // Horse markings (keys match HorseMarking enum names in lower_snake form)
-      registerHorseMarking("white", Identifier.of("minecraft", "textures/entity/horse/horse_markings_white.png"));
-      registerHorseMarking("white_dots", Identifier.of("minecraft", "textures/entity/horse/horse_markings_whitedots.png"));
-      registerHorseMarking("white_field", Identifier.of("minecraft", "textures/entity/horse/horse_markings_whitefield.png"));
-      registerHorseMarking("black_dots", Identifier.of("minecraft", "textures/entity/horse/horse_markings_blackdots.png"));
     }
 
     private static void registerHorseColor(String key, String textureFile) {
         Identifier tex = ModConstants.Id("textures/entity/equipment/horse_body/" + textureFile);
         HORSE_COLOR_TEXTURES.put(key, tex);
         HORSE_COLOR_TEXTURES.put(key.replace("_", ""), tex);
-    }
-
-    private static void registerHorseMarking(String key, Identifier texture) {
-        Identifier tex = texture;
-        HORSE_MARKING_TEXTURES.put(key, tex);
-        HORSE_MARKING_TEXTURES.put(key.replace("_", ""), tex);
     }
 
     private static void putSaddle(EquipmentModel.LayerType saddleLayer, String assetIdPath) {
@@ -220,31 +207,6 @@ public abstract class SaddleFeatureRendererMixin {
         return RenderLayer.getEntityTranslucent(texture);
     }
 
-    // For markings prone to distance flicker, use targeted strategies per variant:
-    // - white: cutout Z-offset pre-pass then translucent Z-offset (stability + soft edges)
-    // - black_dots: translucent Z-offset only (preserve semi-transparency), but slightly stronger scale
-    // - others: translucent Z-offset only
-    private void renderMarkingLayer(EntityModel<LivingEntityRenderState> model,
-                                    MatrixStack matrices,
-                                    VertexConsumerProvider vertexConsumers,
-                                    int light,
-                                    Identifier texture,
-                                    String markingKey) {
-        boolean isBlackDots = "black_dots".equals(markingKey) || "blackdots".equals(markingKey);
-        boolean isWhite = "white".equals(markingKey);
-
-        if (isBlackDots) {
-            // Preserve semi-transparency: avoid cutout. Slightly increase separation for stability.
-            matrices.scale(1.0015F, 1.0015F, 1.0015F);
-            renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, texture);
-        } else if (isWhite) {
-            // Depth-stabilizing pre-pass, then translucent smoothing.
-            renderCutoutZOffsetBody(model, matrices, vertexConsumers, light, texture);
-            renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, texture);
-        } else {
-            renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, texture);
-        }
-    }
 
     @Inject(method = "render(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;ILnet/minecraft/client/render/entity/state/LivingEntityRenderState;FF)V",
             at = @At("HEAD"), cancellable = true)
@@ -325,7 +287,7 @@ public abstract class SaddleFeatureRendererMixin {
         ci.cancel();
     }
 
-    // Draws optional overlays for horse variants based on color and markings, if textures exist
+    // Draws optional overlays for horse color variants if textures exist
     private void renderHorseVariantOverlays(EntityModel<LivingEntityRenderState> model,
                                             MatrixStack matrices,
                                             VertexConsumerProvider vertexConsumers,
@@ -336,7 +298,6 @@ public abstract class SaddleFeatureRendererMixin {
         if (!(renderState instanceof HorseEntityRenderState horse)) return;
 
         String color = safeEnumName(horse.color);
-        String marking = safeEnumName(horse.marking);
 
         boolean renderedColor = false;
         // Draw color variant if present
@@ -370,41 +331,6 @@ public abstract class SaddleFeatureRendererMixin {
             renderTranslucentBody(model, matrices, vertexConsumers, light, defaultCoatTexture, false);
         }
 
-        if (!marking.isEmpty() && !"none".equals(marking)) {
-            Identifier mappedMarking = HORSE_MARKING_TEXTURES.get(marking);
-            boolean renderedMarking = false;
-            if (mappedMarking != null) {
-                // Always render mapped vanilla marking textures without resource existence checks.
-                // Resource reloads can briefly make getResource() return empty during the same frame.
-                ModConstants.LOGGER.info("Echo Summon: rendering mapped horse marking '{}' -> {}", marking, mappedMarking);
-                // Slight scale-up to ensure the overlay sits just above the coat in depth, avoiding occlusion
-                matrices.push();
-                matrices.scale(1.0005F, 1.0005F, 1.0005F);
-                // Use best-fit layer strategy for this specific marking key
-                renderMarkingLayer(model, matrices, vertexConsumers, light, mappedMarking, marking);
-                matrices.pop();
-                renderedMarking = true;
-            }
-            if (!renderedMarking) {
-                Identifier[] markingCandidates = getHorseMarkingTextureCandidates(marking);
-                for (Identifier texPath : markingCandidates) {
-                    boolean available = resourceExists(texPath);
-                    if (available) {
-                        ModConstants.LOGGER.info("Echo Summon: rendering horse marking '{}' with texture {}", marking, texPath);
-                        matrices.push();
-                        matrices.scale(1.0005F, 1.0005F, 1.0005F);
-                        // Use best-fit layer strategy for this specific marking key
-                        renderMarkingLayer(model, matrices, vertexConsumers, light, texPath, marking);
-                        matrices.pop();
-                        renderedMarking = true;
-                        break;
-                    }
-                }
-                if (!renderedMarking) {
-                    ModConstants.LOGGER.info("Echo Summon: horse marking overlay missing for marking '{}' (map/candidates exhausted).", marking);
-                }
-            }
-        }
     }
 
     private static String safeEnumName(Object enumVal) {
@@ -431,32 +357,6 @@ public abstract class SaddleFeatureRendererMixin {
         return candidates.stream().filter(Objects::nonNull).distinct().toArray(Identifier[]::new);
     }
 
-    private static Identifier[] getHorseMarkingTextureCandidates(String markingKey) {
-        String snake = markingKey;
-        String clean = markingKey.replace("_", "");
-        List<Identifier> candidates = new ArrayList<>();
-
-        // Vanilla namespace (UV-aligned to the base model)
-        candidates.add(Identifier.of("minecraft", "textures/entity/horse/horse_markings_" + snake + ".png"));
-        if (!clean.equals(snake)) {
-            candidates.add(Identifier.of("minecraft", "textures/entity/horse/horse_markings_" + clean + ".png"));
-        }
-
-        // Mod namespace singular/plural variations (used when vanilla files are missing)
-        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_" + snake + ".png"));
-        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_markings_" + snake + ".png"));
-        if (!clean.equals(snake)) {
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_" + clean + ".png"));
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_markings_" + clean + ".png"));
-        }
-
-        // Legacy fallback (e.g., without prefix)
-        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/" + clean + ".png"));
-        if (!clean.equals(snake)) {
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/" + snake + ".png"));
-        }
-        return candidates.stream().filter(Objects::nonNull).distinct().toArray(Identifier[]::new);
-    }
 
     private static boolean resourceExists(Identifier id) {
         try {

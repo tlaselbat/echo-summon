@@ -1,33 +1,38 @@
 // Define the plugins used in this build script
 plugins {
 	// Use the Fabric Loom plugin for Minecraft mod development
-	id 'fabric-loom' version '1.10.1'
-	// Use the Maven Publish plugin for publishing the mod to a repository
-	id 'maven-publish'
+    id 'fabric-loom' version '1.10.1'
+    // Use the Maven Publish plugin for publishing the mod to a repository
+    id 'maven-publish'
 }
 
 // Configure the Fabric Loom plugin
 loom {
-	// Specify the path to the access widener file when needed
-	// accessWidenerPath = file("src/main/resources/echo_summon.accesswidener")
+    // Specify the path to the access widener file when needed
+    // accessWidenerPath = file("src/main/resources/echo_summon.accesswidener")
 
-	runs {
-		client {
-			client()
-			ideConfigGenerated(true)
-			programArgs "--quickPlaySingleplayer", "New World"
-		}
-	}
+    runs {
+        client {
+            client()
+            ideConfigGenerated(true)
+            programArgs "--quickPlaySingleplayer", "New World"
+        }
+    }
+
+    // Ensure the generated refmap name matches echo_summon.mixins.json
+    mixin {
+        defaultRefmapName = "echo_summon.refmap.json"
+    }
 }
 
 // Configure the base settings for the mod
 base {
-	// Set the name of the mod archive
-	archivesName = "${project.archives_base_name}-${project.minecraft_version}"
-	// Set the version of the mod
-	version = project.mod_version
-	// Set the group ID of the mod
-	group = project.maven_group
+    // Set the name of the mod archive
+    archivesName = "${project.archives_base_name}-${project.minecraft_version}"
+    // Set the version of the mod
+    version = project.mod_version
+    // Set the group ID of the mod
+    group = project.maven_group
 }
 
 // Define the repositories used in this build script
