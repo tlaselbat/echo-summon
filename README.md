@@ -1,4 +1,4 @@
-# Echo Summon — Summon Tool (Draft)
+# Echo Summon — Summon Tool 
 
 A simple guide for new players.
 
