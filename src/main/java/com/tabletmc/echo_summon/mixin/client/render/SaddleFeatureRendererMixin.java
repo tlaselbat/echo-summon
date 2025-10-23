@@ -307,7 +307,17 @@ public abstract class SaddleFeatureRendererMixin {
                     renderTranslucentBody(model, matrices, vertexConsumers, light, chestedTex, false);
                 }
             } else {
-                // Disabled base-texture fallback when no body layer is available
+                // No body layer is available on this mapping. Provide a camel-specific fallback so that
+                // the camel body overlay still renders even when CAMEL_BODY is missing.
+                try {
+                    if (this.layerType == EquipmentModel.LayerType.CAMEL_SADDLE && baseTexture != null && resourceExists(baseTexture)) {
+                        // Render the base camel body texture directly using a translucent Z-offset layer
+                        // to avoid z-fighting with the vanilla coat.
+                        renderTranslucentZOffsetBody(overlayModel, matrices, vertexConsumers, light, baseTexture);
+                    }
+                } catch (Throwable ignored) {
+                    // If CAMEL_SADDLE enum is not present in this environment, simply skip.
+                }
             }
         }
 
