@@ -15,10 +15,12 @@ public final class EchoSummonConfig {
     private static final String FILE_NAME = "echo_summon.properties";
     private static final String KEY_BODY_RENDER = "enableCustomMountBodyRendering";
     private static final String KEY_BODY_GLINT = "enableMountBodyGlint";
+    private static final String KEY_DISABLE_TEST_MOUNT_AI = "disableTestCommandMountAI";
 
     // Defaults: enabled
     public static boolean enableCustomMountBodyRendering = true;
     public static boolean enableMountBodyGlint = true;
+    public static boolean disableTestCommandMountAI = false;
 
     private static Path configPath() {
         return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
@@ -33,6 +35,7 @@ public final class EchoSummonConfig {
             } catch (IOException ignored) {}
             enableCustomMountBodyRendering = getBoolean(p, KEY_BODY_RENDER, true);
             enableMountBodyGlint = getBoolean(p, KEY_BODY_GLINT, true);
+            disableTestCommandMountAI = getBoolean(p, KEY_DISABLE_TEST_MOUNT_AI, false);
         } else {
             // Write defaults on first run
             save();
@@ -43,6 +46,7 @@ public final class EchoSummonConfig {
         Properties p = new Properties();
         p.setProperty(KEY_BODY_RENDER, Boolean.toString(enableCustomMountBodyRendering));
         p.setProperty(KEY_BODY_GLINT, Boolean.toString(enableMountBodyGlint));
+        p.setProperty(KEY_DISABLE_TEST_MOUNT_AI, Boolean.toString(disableTestCommandMountAI));
         Path path = configPath();
         try {
             Files.createDirectories(path.getParent());

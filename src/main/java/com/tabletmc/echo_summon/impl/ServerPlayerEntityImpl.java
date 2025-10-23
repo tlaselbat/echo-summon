@@ -6,11 +6,11 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 public interface ServerPlayerEntityImpl {
 
-    void storeMount(AnimalEntity horse);
+    void echoSummon$storeMount(AnimalEntity horse);
 
-    void summonMount(boolean mountPlayer);
+    void echoSummon$summonMount(boolean mountPlayer);
 
-    void dismountHorse(boolean mountPlayer);
+    void echoSummon$dismountHorse(boolean mountPlayer);
 
     default AnimalEntity getHorse() {
         Entity storedHorse = ((ServerPlayerEntity) this).getVehicle();

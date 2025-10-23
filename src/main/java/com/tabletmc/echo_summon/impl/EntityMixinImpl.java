@@ -1,5 +1,5 @@
 package com.tabletmc.echo_summon.impl;
 
 public interface EntityMixinImpl {
-    void undoRemove();
+    void echoSummon$undoRemove();
 }

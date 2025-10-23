@@ -1,30 +1,22 @@
 package com.tabletmc.echo_summon.mixin.server;
 
 import com.tabletmc.echo_summon.ModConstants;
-import com.tabletmc.echo_summon.impl.MountSaddleMountImpl;
 import com.tabletmc.echo_summon.impl.ServerPlayerEntityImpl;
 import com.tabletmc.echo_summon.item.ModItems;
 import com.tabletmc.echo_summon.net.ServerNetworking;
 import com.tabletmc.echo_summon.util.NbtUtils;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
-import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import java.util.List;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -34,16 +26,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ServerPlayerEntity.class)
 public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
 
-    @Shadow public abstract void sendMessage(Text message, boolean actionBar);
-
     @Unique private AnimalEntity storedHorse;
     @Unique private boolean tpWasRiding = false;
     @Unique private Entity tpLastVehicle = null;
 
     @Override
-    public void summonMount(boolean mountPlayer) {
+    public void echoSummon$summonMount(boolean mountPlayer) {
         if (storedHorse == null) {
-            sendMessage(Text.of("No Horse Found!"), true);
             return;
         }
 
@@ -64,7 +53,7 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
     }
 
     @Override
-    public void dismountHorse(boolean mountPlayer) {
+    public void echoSummon$dismountHorse(boolean mountPlayer) {
         if (storedHorse == null) {
             return; // No horse to dismount
         }
@@ -78,7 +67,7 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
     }
 
     @Override
-    public void storeMount(AnimalEntity mount) {
+    public void echoSummon$storeMount(AnimalEntity mount) {
         // Do not auto-summon or replace the previously stored horse.
         // Simply update the stored reference to the current mount.
         if (mount.getRemovalReason() != null) {
@@ -122,7 +111,12 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
             if (tpLastVehicle instanceof LivingEntity previousLiving && previousLiving != currentVehicle) {
                 // Persist current state back into the summon tool before dismissing
                 echo_summon$persistSaddleSummonedMount(self, previousLiving);
-                ServerNetworking.handleSaddleAutoDismiss(self, previousLiving);
+                // Skip auto-dismiss for Happy Ghast to allow it to stay in world after dismount
+                net.minecraft.util.Identifier prevId = net.minecraft.entity.EntityType.getId(previousLiving.getType());
+                boolean prevIsHappyGhast = prevId != null && "happy_ghast".equals(prevId.getPath());
+                if (!prevIsHappyGhast) {
+                    ServerNetworking.handleSaddleAutoDismiss(self, previousLiving);
+                }
             }
             tpLastVehicle = currentVehicle;
         } else if (tpWasRiding) {
@@ -130,7 +124,12 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
             if (tpLastVehicle instanceof LivingEntity living) {
                 // Persist current state back into the summon tool before dismissing
                 echo_summon$persistSaddleSummonedMount(self, living);
-                ServerNetworking.handleSaddleAutoDismiss(self, living);
+                // Skip auto-dismiss for Happy Ghast to allow it to stay in world after dismount
+                net.minecraft.util.Identifier id = net.minecraft.entity.EntityType.getId(living.getType());
+                boolean isHappyGhast = id != null && "happy_ghast".equals(id.getPath());
+                if (!isHappyGhast) {
+                    ServerNetworking.handleSaddleAutoDismiss(self, living);
+                }
             }
             tpLastVehicle = null;
         }
@@ -162,54 +161,54 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         if (toolId.isEmpty()) return;
         ItemStack summonTool = echo_summon$findSaddleSummonToolById(player, toolId);
         if (summonTool.isEmpty()) return;
-
-        NbtComponent toolCustom = summonTool.get(DataComponentTypes.CUSTOM_DATA);
-        NbtCompound toolNbt = toolCustom != null ? toolCustom.copyNbt() : new NbtCompound();
-
-        // Serialize full entity NBT (captures donkey/mule chest inventory)
-        NbtCompound stored = net.minecraft.predicate.NbtPredicate.entityToNbt(living);
-        var typeId = EntityType.getId(living.getType());
-        if (typeId != null) {
-            stored.putString("id", typeId.toString());
-        }
-        stored.putString(ModConstants.STORED_MOUNT_ID_KEY, living.getUuidAsString());
-        stored.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, toolId);
-        toolNbt.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, toolId);
-
-        // Persist mount saddle data explicitly from the saddle slot
-        ItemStack saddleEq = living.getEquippedStack(EquipmentSlot.SADDLE);
-        if (!saddleEq.isEmpty() && saddleEq.isOf(ModItems.MOUNT_SADDLE)) {
-            NbtComponent saddleData = saddleEq.get(DataComponentTypes.CUSTOM_DATA);
-            if (saddleData != null) {
-                NbtCompound saddleNbt = saddleData.copyNbt();
-                if (!saddleNbt.contains("mount_type")) {
-                    saddleNbt.putString("mount_type", EntityType.getId(living.getType()).toString());
-                }
-                stored.put("mount_saddle_data", saddleNbt);
-            }
-        }
-
-        toolNbt.put(ModConstants.STORED_MOUNT_KEY, stored);
-        summonTool.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(toolNbt));
-
-        // Update model override to match mount type
+        // If Happy Ghast, bypass full SummonPersistence and only write minimal remote state
         try {
-            String idStr = typeId != null ? typeId.toString() : "";
-            String modelKey = echo_summon$mapEntityTypeToModelKey(idStr);
-            if (!modelKey.isEmpty()) {
-                summonTool.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(List.of(), List.of(), List.of(modelKey), List.of()));
-            } else {
-                summonTool.remove(DataComponentTypes.CUSTOM_MODEL_DATA);
+            net.minecraft.util.Identifier typeId = net.minecraft.entity.EntityType.getId(living.getType());
+            boolean isHappyGhast = typeId != null && "happy_ghast".equals(typeId.getPath());
+            if (isHappyGhast) {
+                var cd = summonTool.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+                var nbt = cd != null ? cd.copyNbt() : new net.minecraft.nbt.NbtCompound();
+                java.util.Optional<net.minecraft.nbt.NbtCompound> st = nbt.getCompound(ModConstants.STORED_MOUNT_KEY);
+                net.minecraft.nbt.NbtCompound stored = st.orElse(new net.minecraft.nbt.NbtCompound());
+                // Ensure id + uuid
+                if (typeId != null) stored.putString("id", typeId.toString());
+                stored.putString(ModConstants.STORED_MOUNT_ID_KEY, living.getUuidAsString());
+                // Record dim and position
+                try {
+                    String dimId = living.getWorld().getRegistryKey().getValue().toString();
+                    stored.putString(ModConstants.STORED_DIM_KEY, dimId);
+                    net.minecraft.util.math.BlockPos bp = living.getBlockPos();
+                    net.minecraft.nbt.NbtCompound pos = new net.minecraft.nbt.NbtCompound();
+                    pos.putInt("x", bp.getX());
+                    pos.putInt("y", bp.getY());
+                    pos.putInt("z", bp.getZ());
+                    stored.put(ModConstants.STORED_POS_KEY, pos);
+                } catch (Throwable ignored) {}
+                // Mark remote active and keep tool id consistent/sanitized
+                stored.putBoolean(ModConstants.REMOTE_ACTIVE_KEY, true);
+                stored.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, toolId);
+                nbt.putString(ModConstants.SADDLE_SUMMON_TOOL_ID_KEY, toolId);
+                nbt.put(ModConstants.STORED_MOUNT_KEY, stored);
+                summonTool.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA, net.minecraft.component.type.NbtComponent.of(nbt));
+                return;
             }
+        } catch (Throwable ignored) {}
+        // Delegate to service to ensure consistent persistence (non-Happy Ghast)
+        try {
+            com.tabletmc.echo_summon.net.service.SummonPersistence.persistSaddleSummonedMountToTool(player, summonTool, living, toolId, true);
         } catch (Throwable ignored) {}
     }
 
     @Unique
     private static String echo_summon$extractSaddleToolId(LivingEntity living) {
-        String prefix = ModConstants.MOD_ID + ":saddle_tool:";
+        String prefix = ModConstants.SADDLE_TOOL_TAG_PREFIX;
         for (String tag : living.getCommandTags()) {
             if (tag.startsWith(prefix)) {
-                return tag.substring(prefix.length());
+                String raw = tag.substring(prefix.length());
+                if (raw.startsWith("Optional[") && raw.endsWith("]")) {
+                    raw = raw.substring("Optional[".length(), raw.length() - 1);
+                }
+                return raw;
             }
         }
         return "";
@@ -241,17 +240,5 @@ public abstract class ServerPlayerMixin implements ServerPlayerEntityImpl {
         return toolId.equals(id);
     }
 
-    @Unique
-    private static String echo_summon$mapEntityTypeToModelKey(String id) {
-        if (id == null || id.isEmpty()) return "";
-        return switch (id) {
-            case "minecraft:horse" -> "echo_summon:horse";
-            case "minecraft:donkey" -> "echo_summon:donkey";
-            case "minecraft:mule" -> "echo_summon:mule";
-            case "minecraft:camel" -> "echo_summon:camel";
-            case "minecraft:skeleton_horse" -> "echo_summon:skeleton_horse";
-            case "minecraft:zombie_horse" -> "echo_summon:zombie_horse";
-            default -> "";
-        };
-    }
+    
 }

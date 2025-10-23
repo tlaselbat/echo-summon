@@ -20,11 +20,11 @@ public final class SaddleSummonToolTooltipClient {
 
     public static void register() {
         ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
-            if (!stack.isOf(ModItems.SADDLE_SUMMON_TOOL)) return;
+            if (!stack.isOf(ModItems.SUMMON_TOOL)) return;
 
             NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
             if (custom == null) {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.empty"));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.empty"));
                 return;
             }
 
@@ -35,7 +35,7 @@ public final class SaddleSummonToolTooltipClient {
             }
 
             if (mountOpt.isEmpty()) {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.empty"));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.empty"));
                 return;
             }
 
@@ -46,35 +46,35 @@ public final class SaddleSummonToolTooltipClient {
                     Identifier entId = Identifier.of(id);
                     EntityType<?> type2 = Registries.ENTITY_TYPE.get(entId);
                     if (type2 != null) {
-                        lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.stored", type2.getName()))
+                        lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.stored", type2.getName()))
                         ;
                     } else {
-                        lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.stored", Text.literal(entId.toString())));
+                        lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.stored", Text.literal(entId.toString())));
                     }
                 } catch (Exception e) {
-                    lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.stored", Text.literal(id)));
+                    lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.stored", Text.literal(id)));
                 }
             } else {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.stored", Text.literal("unknown")));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.stored", Text.literal("unknown")));
             }
 
             if (!Screen.hasShiftDown()) {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.shift"));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.shift"));
                 return;
             }
 
             // SHIFT details
             mount.getFloat("Health").ifPresent(h -> {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.health", String.format("%.1f", h)));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.health", String.format("%.1f", h)));
             });
 
             String ownerName = NbtUtils.getString(mount, "owner_name");
             if (!ownerName.isEmpty()) {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.owner", ownerName));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.owner", ownerName));
             }
 
             if (!id.isEmpty()) {
-                lines.add(Text.translatable("item.echo_summon.saddle_summon_tool.tooltip.id", id));
+                lines.add(Text.translatable("item.echo_summon.summon_tool.tooltip.id", id));
             }
         });
     }

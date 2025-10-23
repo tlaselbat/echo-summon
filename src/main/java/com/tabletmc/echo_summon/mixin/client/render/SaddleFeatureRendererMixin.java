@@ -4,6 +4,7 @@ import com.tabletmc.echo_summon.config.EchoSummonConfig;
 import net.fabricmc.api.Environment;
 import net.fabricmc.api.EnvType;
 import net.minecraft.client.MinecraftClient;
+import com.tabletmc.echo_summon.item.ModItems;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -38,10 +39,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Arrays;
 
-/**
- * Custom-render Mount Saddle overlays using the new equipment asset IDs present in resources.
- * Renders both the saddle overlay (current renderer layer) and a full-body overlay per mount species.
- */
 @Environment(EnvType.CLIENT)
 @Mixin(SaddleFeatureRenderer.class)
 public abstract class SaddleFeatureRendererMixin {
@@ -62,6 +59,7 @@ public abstract class SaddleFeatureRendererMixin {
     private static final Map<EquipmentModel.LayerType, RegistryKey<EquipmentAsset>> BODY_ASSET_BY_SADDLE = new EnumMap<>(EquipmentModel.LayerType.class);
     private static final Map<EquipmentModel.LayerType, Identifier> BASE_BODY_TEXTURE = new EnumMap<>(EquipmentModel.LayerType.class);
     private static final Map<String, Identifier> HORSE_COLOR_TEXTURES = new java.util.HashMap<>();
+    private static final Map<String, Identifier> HORSE_MARKING_TEXTURES = new java.util.HashMap<>();
 
     // Reflection handles for translucent Z-offset layers (not present on all mappings)
     private static java.lang.reflect.Method TRANSLUCENT_CULL_Z_OFFSET_METHOD;
@@ -71,7 +69,7 @@ public abstract class SaddleFeatureRendererMixin {
       // Saddle overlays (asset IDs must match equipment asset JSON IDs = path under assets/.../equipment/)
       putSaddle(EquipmentModel.LayerType.HORSE_SADDLE,   "entity/horse_saddle_item/horse_saddle_item");
       putSaddle(EquipmentModel.LayerType.DONKEY_SADDLE,  "entity/donkey_saddle_item/donkey_saddle_item");
-      putSaddle(EquipmentModel.LayerType.MULE_SADDLE,    "entity/muleas_saddle_item/mule_saddle_item");
+      putSaddle(EquipmentModel.LayerType.MULE_SADDLE,    "entity/mule_saddle_item/mule_saddle_item");
       putSaddle(EquipmentModel.LayerType.SKELETON_HORSE_SADDLE, "entity/skeleton_saddle_item/skeleton_saddle_item");
       putSaddle(EquipmentModel.LayerType.ZOMBIE_HORSE_SADDLE,   "entity/zombie_saddle_item/zombie_saddle_item");
       putSaddle(EquipmentModel.LayerType.CAMEL_SADDLE,   "entity/camel_saddle_item/camel_saddle_item");
@@ -82,8 +80,8 @@ public abstract class SaddleFeatureRendererMixin {
       mapBody(EquipmentModel.LayerType.SKELETON_HORSE_SADDLE, EquipmentModel.LayerType.HORSE_BODY, "entity/skeleton_mount_body/skeleton_mount_body");
       mapBody(EquipmentModel.LayerType.ZOMBIE_HORSE_SADDLE,   EquipmentModel.LayerType.HORSE_BODY, "entity/zombie_mount_body/zombie_mount_body");
       mapBody(EquipmentModel.LayerType.HORSE_SADDLE,  EquipmentModel.LayerType.HORSE_BODY,   "entity/horse_mount_body/horse_mount_body");
-      // Disable body overlays for species without compatible body layers
-      // Custom overlays rendered manually (no matching equipment layer types)
+      // Reflective: only maps if CAMEL_BODY exists on this mapping
+      mapBodyByName(EquipmentModel.LayerType.CAMEL_SADDLE, "CAMEL_BODY",   "entity/camel_mount_body/camel_mount_body");
       BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.HORSE_SADDLE,
               ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body.png"));
       BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.DONKEY_SADDLE,
@@ -105,12 +103,23 @@ public abstract class SaddleFeatureRendererMixin {
       registerHorseColor("black", "horse_mount_body_color_black.png");
       registerHorseColor("gray", "horse_mount_body_color_gray.png");
       registerHorseColor("dark_brown", "horse_mount_body_color_darkbrown.png");
+      // Horse markings (keys match common HorseMarking enum names)
+      registerHorseMarking("white", "horse_mount_body_marking_white.png");
+      registerHorseMarking("white_field", "horse_mount_body_marking_whitefield.png");
+      registerHorseMarking("white_dots", "horse_mount_body_marking_whitedots.png");
+      registerHorseMarking("black_dots", "horse_mount_body_marking_blackdots.png");
     }
 
     private static void registerHorseColor(String key, String textureFile) {
         Identifier tex = ModConstants.Id("textures/entity/equipment/horse_body/" + textureFile);
         HORSE_COLOR_TEXTURES.put(key, tex);
         HORSE_COLOR_TEXTURES.put(key.replace("_", ""), tex);
+    }
+
+    private static void registerHorseMarking(String key, String textureFile) {
+        Identifier tex = ModConstants.Id("textures/entity/equipment/horse_body/" + textureFile);
+        HORSE_MARKING_TEXTURES.put(key, tex);
+        HORSE_MARKING_TEXTURES.put(key.replace("_", ""), tex);
     }
 
     private static void putSaddle(EquipmentModel.LayerType saddleLayer, String assetIdPath) {
@@ -120,6 +129,15 @@ public abstract class SaddleFeatureRendererMixin {
     private static void mapBody(EquipmentModel.LayerType saddleLayer, EquipmentModel.LayerType bodyLayer, String assetIdPath) {
         BODY_LAYER_BY_SADDLE.put(saddleLayer, bodyLayer);
         BODY_ASSET_BY_SADDLE.put(saddleLayer, RegistryKey.of(EquipmentAssetKeys.REGISTRY_KEY, ModConstants.Id(assetIdPath)));
+    }
+
+    // Resolves a body layer enum by name if present; no-op if absent
+    private static void mapBodyByName(EquipmentModel.LayerType saddleLayer, String bodyLayerName, String assetIdPath) {
+        try {
+            EquipmentModel.LayerType bodyLayer = EquipmentModel.LayerType.valueOf(bodyLayerName);
+            BODY_LAYER_BY_SADDLE.put(saddleLayer, bodyLayer);
+            BODY_ASSET_BY_SADDLE.put(saddleLayer, RegistryKey.of(EquipmentAssetKeys.REGISTRY_KEY, ModConstants.Id(assetIdPath)));
+        } catch (Throwable ignored) {}
     }
 
     private boolean shouldApplyBodyGlint(ItemStack saddleStack) {
@@ -223,7 +241,20 @@ public abstract class SaddleFeatureRendererMixin {
         ItemStack saddleStack = this.saddleStackGetter.apply(renderState);
         if (saddleStack.isEmpty()) return;
 
-        // Proceed for any equipped saddle (vanilla or mod) so overlays work universally
+        // Only apply custom rendering when our mount saddle is equipped (or the asset is from echo_summon)
+        boolean isEchoMountSaddle = saddleStack.isOf(ModItems.MOUNT_SADDLE);
+        EquippableComponent equippable = saddleStack.get(DataComponentTypes.EQUIPPABLE);
+        boolean hasEchoAsset = false;
+        if (equippable != null && !equippable.assetId().isEmpty()) {
+            try {
+                Identifier aid = equippable.assetId().get().getValue();
+                hasEchoAsset = aid != null && ModConstants.MOD_ID.equals(aid.getNamespace());
+            } catch (Throwable ignored) {}
+        }
+        if (!(isEchoMountSaddle || hasEchoAsset)) {
+            // Not our saddle: let vanilla renderer proceed without canceling
+            return;
+        }
 
         @SuppressWarnings("unchecked")
         EntityModel<LivingEntityRenderState> model = (EntityModel<LivingEntityRenderState>)(renderState.baby ? this.babyModel : this.adultModel);
@@ -234,7 +265,18 @@ public abstract class SaddleFeatureRendererMixin {
         EntityModel<LivingEntityRenderState> overlayModel = model;
         overlayModel.setAngles(renderState);
 
-        EquippableComponent equippable = saddleStack.get(DataComponentTypes.EQUIPPABLE);
+        // equippable already resolved above
+
+        // If the saddle equipment asset is missing from resources, let vanilla renderer handle it to avoid missing overlays
+        RegistryKey<EquipmentAsset> probeSaddle = SADDLE_ASSET.get(this.layerType);
+        if (probeSaddle == null) {
+            probeSaddle = equippable != null && !equippable.assetId().isEmpty()
+                    ? equippable.assetId().get()
+                    : EquipmentAssetKeys.SADDLE;
+        }
+        if (!equipmentAssetExists(probeSaddle)) {
+            return; // do not cancel; vanilla rendering will proceed
+        }
 
         // Body overlay (species-specific when available) — gated by config
         if (bodyEnabled) {
@@ -253,8 +295,10 @@ public abstract class SaddleFeatureRendererMixin {
                     // Overlay variant-specific textures when present (only applies to horses via instanceof check)
                     // Render on overlayModel (context model if available) so anchors match the base body
                     renderHorseVariantOverlays(overlayModel, matrices, vertexConsumers, light, renderState, saddleStack, baseTexture);
-                } else if (baseTexture != null && resourceExists(baseTexture)) {
-                    renderTranslucentBody(overlayModel, matrices, vertexConsumers, light, baseTexture, false);
+                    // Overlay markings (white, white_field, white_dots, black_dots) when present
+                    renderHorseMarkingOverlays(overlayModel, matrices, vertexConsumers, light, renderState, saddleStack);
+                } else {
+                    // Disabled base-texture fallback for non-horses
                 }
 
                 // Special-case donkey/mule chest state to overlay chested texture if present
@@ -263,9 +307,7 @@ public abstract class SaddleFeatureRendererMixin {
                     renderTranslucentBody(model, matrices, vertexConsumers, light, chestedTex, false);
                 }
             } else {
-                if (baseTexture != null && resourceExists(baseTexture)) {
-                    renderTranslucentBody(model, matrices, vertexConsumers, light, baseTexture, false);
-                }
+                // Disabled base-texture fallback when no body layer is available
             }
         }
 
@@ -298,48 +340,88 @@ public abstract class SaddleFeatureRendererMixin {
         if (!(renderState instanceof HorseEntityRenderState horse)) return;
 
         String color = safeEnumName(horse.color);
+        if (color.isEmpty()) return;
 
-        boolean renderedColor = false;
-        // Draw color variant if present
-        if (!color.isEmpty()) {
-            Identifier mappedColor = HORSE_COLOR_TEXTURES.get(color);
-            if (mappedColor == null) {
-                ModConstants.LOGGER.info("Echo Summon: horse color '{}' not in map, falling back to candidates.", color);
-            } else {
-                ModConstants.LOGGER.info("Echo Summon: rendering mapped horse coat '{}' -> {}", color, mappedColor);
-                renderTranslucentBody(model, matrices, vertexConsumers, light, mappedColor, false);
-                renderedColor = true;
-            }
-            if (!renderedColor) {
-                Identifier[] colorCandidates = getHorseColorTextureCandidates(color);
-                for (Identifier texPath : colorCandidates) {
-                    if (resourceExists(texPath)) {
-                        ModConstants.LOGGER.info("Echo Summon: rendering horse coat variant '{}' with texture {}", color, texPath);
-                        renderTranslucentBody(model, matrices, vertexConsumers, light, texPath, false);
-                        renderedColor = true;
-                        break;
-                    }
-                }
-                if (!renderedColor && colorCandidates.length > 0) {
-                    ModConstants.LOGGER.info("Echo Summon: horse coat overlay missing for color '{}' (candidates: {}).", color, java.util.Arrays.toString(colorCandidates));
-                }
-            }
+        // 1) Direct mapped color texture
+        Identifier mapped = HORSE_COLOR_TEXTURES.get(color);
+        if (mapped != null && resourceExists(mapped)) {
+            renderTranslucentBody(model, matrices, vertexConsumers, light, mapped, false);
+            return;
         }
 
-        if (!renderedColor && defaultCoatTexture != null) {
-            ModConstants.LOGGER.info("Echo Summon: using default coat texture {} for horse color '{}'", defaultCoatTexture, color);
-            renderTranslucentBody(model, matrices, vertexConsumers, light, defaultCoatTexture, false);
+        // 2) Candidate filenames
+        Identifier[] candidates = getHorseColorTextureCandidates(color);
+        for (Identifier tex : candidates) {
+            if (resourceExists(tex)) {
+                renderTranslucentBody(model, matrices, vertexConsumers, light, tex, false);
+                return;
+            }
+        }
+        // 3) No fallback when not found (base-texture fallback disabled)
+    }
+
+    // Draws optional overlays for horse markings if textures exist (white, white_field, white_dots, black_dots)
+    private void renderHorseMarkingOverlays(EntityModel<LivingEntityRenderState> model,
+                                            MatrixStack matrices,
+                                            VertexConsumerProvider vertexConsumers,
+                                            int light,
+                                            LivingEntityRenderState renderState,
+                                            ItemStack saddleStack) {
+        if (!(renderState instanceof HorseEntityRenderState horse)) return;
+
+        String marking = resolveHorseMarkingKey(horse);
+        if (marking.isEmpty()) return;
+
+        Identifier mapped = HORSE_MARKING_TEXTURES.get(marking);
+        if (mapped != null && resourceExists(mapped)) {
+            renderTranslucentBody(model, matrices, vertexConsumers, light, mapped, false);
+            return;
         }
 
+        Identifier[] candidates = getHorseMarkingTextureCandidates(marking);
+        for (Identifier tex : candidates) {
+            if (resourceExists(tex)) {
+                renderTranslucentBody(model, matrices, vertexConsumers, light, tex, false);
+                return;
+            }
+        }
     }
 
     private static String safeEnumName(Object enumVal) {
         try {
             if (enumVal instanceof Enum<?> e) {
-                return e.name().toLowerCase(Locale.ROOT);
+                return e.name().toLowerCase(java.util.Locale.ROOT);
             }
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
+        return "";
+    }
+
+    // Attempts to obtain a marking enum name from the render state reflectively
+    private static String resolveHorseMarkingKey(HorseEntityRenderState horse) {
+        if (horse == null) return "";
+        // Try common field names first
+        try {
+            var f = horse.getClass().getField("marking");
+            Object v = f.get(horse);
+            String s = safeEnumName(v);
+            if (!s.isEmpty()) return s;
+        } catch (Throwable ignored) {}
+        try {
+            var f = horse.getClass().getField("pattern");
+            Object v = f.get(horse);
+            String s = safeEnumName(v);
+            if (!s.isEmpty()) return s;
+        } catch (Throwable ignored) {}
+        // Scan for any enum field whose name hints marking/pattern/style
+        try {
+            for (var f : horse.getClass().getFields()) {
+                String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+                if (!(n.contains("mark") || n.contains("pattern") || n.contains("style"))) continue;
+                Object v = f.get(horse);
+                String s = safeEnumName(v);
+                if (!s.isEmpty()) return s;
+            }
+        } catch (Throwable ignored) {}
         return "";
     }
 
@@ -357,12 +439,51 @@ public abstract class SaddleFeatureRendererMixin {
         return candidates.stream().filter(Objects::nonNull).distinct().toArray(Identifier[]::new);
     }
 
+    private static Identifier[] getHorseMarkingTextureCandidates(String markingKey) {
+        String snake = markingKey;
+        String clean = markingKey.replace("_", "");
+        List<Identifier> candidates = new ArrayList<>();
+        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_" + snake + ".png"));
+        if (!clean.equals(snake)) {
+            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_" + clean + ".png"));
+        }
+        // explicit synonyms
+        if ("whitefield".equals(clean)) {
+            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_white_field.png"));
+        }
+        if ("whitedots".equals(clean)) {
+            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_white_dots.png"));
+        }
+        if ("blackdots".equals(clean)) {
+            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_black_dots.png"));
+        }
+        return candidates.stream().filter(Objects::nonNull).distinct().toArray(Identifier[]::new);
+    }
+
+
+    // Cache resource existence checks to avoid per-frame I/O
+    private static final java.util.concurrent.ConcurrentMap<Identifier, Boolean> RESOURCE_EXISTS_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static boolean resourceExists(Identifier id) {
+        return RESOURCE_EXISTS_CACHE.computeIfAbsent(id, k -> {
+            try {
+                var rm = MinecraftClient.getInstance().getResourceManager();
+                java.util.Optional<?> res = rm.getResource(k);
+                return res != null && res.isPresent();
+            } catch (Throwable ignored) {
+                return false;
+            }
+        });
+    }
+
+    // Checks if an equipment asset JSON exists under assets/<ns>/equipment/<path>.json
+    private static boolean equipmentAssetExists(RegistryKey<EquipmentAsset> key) {
+        if (key == null) return false;
         try {
-            var rm = MinecraftClient.getInstance().getResourceManager();
-            java.util.Optional<?> res = rm.getResource(id);
-            return res != null && res.isPresent();
+            Identifier id = key.getValue();
+            if (id == null) return false;
+            Identifier res = Identifier.of(id.getNamespace(), "equipment/" + id.getPath() + ".json");
+            return resourceExists(res);
         } catch (Throwable ignored) {
             return false;
         }

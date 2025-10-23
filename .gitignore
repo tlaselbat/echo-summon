@@ -10,7 +10,6 @@ classes/
 *.launch
 
 # idea
-
 .idea/
 *.iml
 *.ipr
@@ -29,7 +28,7 @@ bin/
 
 # fabric
 
-run/
+run
 
 # java
 

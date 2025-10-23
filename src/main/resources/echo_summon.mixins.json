@@ -6,10 +6,13 @@
   "mixins": [
     "server.AbstractHorseEntityMixin",
     "server.EntityMixin",
-    "server.HorseScreenHandlerMixin",
+    "server.LivingEntityMixin",
     "server.PlayerManagerMixin",
     "server.ServerPlayerMixin",
-    "server.HappyGhastEntityMixin"
+    "server.HappyGhastEntityMixin",
+    "server.ScreenHandlerMixin",
+    "server.TestSpawnAiLockMixin",
+    "server.SlotMixin"
   ],
   "injectors": {
     "defaultRequire": 1

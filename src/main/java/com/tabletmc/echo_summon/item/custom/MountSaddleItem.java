@@ -18,10 +18,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Mount Saddle - A special saddle that links a stored mount to its saddle summon tool.
- * Stores mapping data: stored_mount_id and saddle_summon_tool_item_id in CUSTOM_DATA.
- */
 public class MountSaddleItem extends Item {
     public static final String STORED_MOUNT_ID_KEY = "stored_mount_id";
     public static final String ECHO_MOUNT_SUMMON_TOOL_ID_KEY = ModConstants.SADDLE_SUMMON_TOOL_ID_KEY;

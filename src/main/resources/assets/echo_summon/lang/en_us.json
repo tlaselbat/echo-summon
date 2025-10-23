@@ -1,30 +1,22 @@
 {
-  "item.echo_summon.saddle_summon_tool": "Saddle Summon Tool",
+  "item.echo_summon.summon_tool": "Summon Tool",
   "item.echo_summon.mount_saddle": "Mount Saddle",
-  "item.echo_summon.harness_summon_tool": "Harness Summon Tool",
-  "item.echo_summon.mount_harness": "Mount Harness",
+  
 
-  "item.echo_summon.saddle_summon_tool.tooltip.empty": "Empty. Right-click an allowed mount to store it.",
-  "item.echo_summon.saddle_summon_tool.tooltip.stored": "Stored: %s",
-  "item.echo_summon.saddle_summon_tool.tooltip.shift": "Hold Shift for details",
-  "item.echo_summon.saddle_summon_tool.tooltip.health": "Health: %s",
-  "item.echo_summon.saddle_summon_tool.tooltip.owner": "Owner: %s",
-  "item.echo_summon.saddle_summon_tool.tooltip.id": "ID: %s",
+  "item.echo_summon.summon_tool.tooltip.empty": "Empty. Right-click an allowed mount to store it.",
+  "item.echo_summon.summon_tool.tooltip.stored": "Stored: %s",
+  "item.echo_summon.summon_tool.tooltip.shift": "Hold Shift for details",
+  "item.echo_summon.summon_tool.tooltip.health": "Health: %s",
+  "item.echo_summon.summon_tool.tooltip.owner": "Owner: %s",
+  "item.echo_summon.summon_tool.tooltip.id": "ID: %s",
 
-  "item.echo_summon.harness_summon_tool.tooltip.empty": "Empty. Right-click a harnessable mount to store it.",
-  "item.echo_summon.harness_summon_tool.tooltip.stored": "Stored: %s",
-  "item.echo_summon.harness_summon_tool.tooltip.shift": "Hold Shift for details",
-  "item.echo_summon.harness_summon_tool.tooltip.owner": "Owner: %s",
-  "item.echo_summon.harness_summon_tool.tooltip.id": "ID: %s",
-  "item.echo_summon.harness_summon_tool.tooltip.happy_ghast": "Variant: Happy Ghast",
+  
 
   "item.echo_summon.mount_saddle.tooltip.basic": "Equip to saddle-slot mounts",
   "item.echo_summon.mount_saddle.tooltip.mount_type": "Mount: %s",
   "item.echo_summon.mount_saddle.tooltip.linked_tool": "Linked to summon tool",
 
-  "item.echo_summon.mount_harness.tooltip.basic": "Equip to supported mounts",
-  "item.echo_summon.mount_harness.tooltip.mount_type": "Mount: %s",
-  "item.echo_summon.mount_harness.tooltip.linked_tool": "Linked to harness tool",
+  
 
   "config.echo_summon.title": "Echo Summon Settings",
   "config.echo_summon.category.general": "General",

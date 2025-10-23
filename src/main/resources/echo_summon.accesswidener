@@ -1,0 +1,7 @@
+accessWidener v2 named
+
+# Allow direct reference to the horse variant tracked data field
+accessible field net/minecraft/entity/passive/HorseEntity VARIANT Lnet/minecraft/entity/data/TrackedData;
+
+# Allow direct invocation of setHasChest on donkeys/mules
+accessible method net/minecraft/entity/passive/AbstractDonkeyEntity setHasChest (Z)V

@@ -108,7 +108,7 @@ eew            - Applies cooldown.
 ## Commands & Utilities
 
 - **`/test_saddle_summon_tool`** (`SpawnAllowedMountsCommand`)
-    - QA helper for spawning every entity in tag `echo_summon:saddle_summon_tool_allowed_mounts`.
+    - QA helper driven by `SpawnConfigService` using default entries defined in `config/SpawnCommandConfig`.
     - Subcommands: `kill` (despawn test entities/items), `saddled` (spawn pre-equipped mounts).
     - Annotates generated items so cleanup routines can track them.
 

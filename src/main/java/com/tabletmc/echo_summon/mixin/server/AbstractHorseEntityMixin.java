@@ -26,13 +26,7 @@ public abstract class AbstractHorseEntityMixin implements MountSaddleMountImpl, 
 
     @Shadow protected abstract void setHorseFlag(int flag, boolean value);
     // Flag to indicate if the horse has the Mount Saddle equipped
-    @Unique private boolean mountArmor = false;
-
-    // Method to check if the horse is wearing the Mount Saddle
-    @Override
-    public boolean hasMountSaddle() {
-        return mountArmor;
-    }
+    @Unique private boolean mountInventory = false;
 
     // Ensure renderer logic that queries isSaddled()/hasSaddle() returns true
     // when any SADDLE-slot equippable (e.g., Echo Saddle) is equipped.
@@ -54,15 +48,10 @@ public abstract class AbstractHorseEntityMixin implements MountSaddleMountImpl, 
     }
     // Removed: method does not exist on 1.21.8 horses; we keep client rendering mixin instead.
 
-    /**
-     * Updates the Mount Saddle flag based on the horse's current saddle slot item.
-     *
-     * This method checks if the horse is wearing the Mount Saddle and sets the flag accordingly.
-     */
     @Override
-    public void updateMountSaddle() {
+    public void echoSummon$updateMountSaddle() {
         // Read from the saddle slot instead of body armor
-        ItemStack saddleStack = ((LivingEntity) (Object) this).getEquippedStack(EquipmentSlot.SADDLE);
+        ItemStack saddleStack = (( LivingEntity) (Object) this).getEquippedStack(EquipmentSlot.SADDLE);
         Item current = saddleStack.getItem();
 
         EquippableComponent eq = saddleStack.get(DataComponentTypes.EQUIPPABLE);
@@ -73,7 +62,7 @@ public abstract class AbstractHorseEntityMixin implements MountSaddleMountImpl, 
         } catch (Throwable t) {
             isOurSaddle = false;
         }
-        mountArmor = isSaddleSlot && isOurSaddle;
+        mountInventory = isSaddleSlot && isOurSaddle;
     }
     // NBT persistence hooks removed for 1.21.8; saddle flag is recomputed via updateMountSaddle().
 
@@ -82,8 +71,8 @@ public abstract class AbstractHorseEntityMixin implements MountSaddleMountImpl, 
         setHorseFlag(4, saddled);
     }
 
-    /**
-     * This method is injected into the 'tickControlled' method of the AbstractHorseEntity class.
-     * It is called at the head of the method, meaning it will be executed before the original code in 'tickControlled'.
-     */
+    @Unique
+    public boolean isMountInventory() {
+        return mountInventory;
+    }
 }

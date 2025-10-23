@@ -7,7 +7,14 @@ import com.tabletmc.echo_summon.net.ClientNetworking;
 import com.tabletmc.echo_summon.config.EchoSummonConfig;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 
+/**
+ * Client entrypoint for Echo Summon. Wires up client-only systems such as
+ * configuration loading, tooltips, keybinds, and client networking hooks.
+ */
 public class ClientInitializer implements net.fabricmc.api.ClientModInitializer {
+    /**
+     * Initializes client-only components on mod load.
+     */
     @Override
     public void onInitializeClient() {
         // Load config on client so rendering toggles are available
@@ -17,6 +24,5 @@ public class ClientInitializer implements net.fabricmc.api.ClientModInitializer 
         RegisterKeybinds.ALL.forEach(KeyBindingHelper::registerKeyBinding);
         SaddleSummonToolTooltipClient.register();
         EquipmentTooltipsClient.register();
-        // TODO: Re-implement mount summon tool model variants using the 1.21+ item asset system instead of runtime predicates.
     }
 }

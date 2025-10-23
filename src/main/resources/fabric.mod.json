@@ -3,7 +3,7 @@
 	"id": "echo_summon",
 	"version": "${version}",
 	"name": "ClickMC: Echo Summon",
-	"description": "A brief description of the mod.",
+	"description": "Summon, bind, and manage mounts via saddle and harness tools.",
 	"authors": ["TabletMC"],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
@@ -17,12 +17,15 @@
 		"modmenu": ["com.tabletmc.echo_summon.compat.ModMenuIntegration"]
 	},
 	"mixins": ["echo_summon.mixins.json"],
+	"accessWidener": "echo_summon.accesswidener",
 	"depends": {
-		"fabric": ">=0.16.0",
-		"minecraft": "~1.21.8",
-		"fabric-api": ">=0.133.0",
-		"java": ">=21",
-		"cloth-config": "*",
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"fabric-api": ">=${fabric_version}",
+		"java": ">=21"
+	},
+	"suggests": {
+		"cloth-config2": "*",
 		"modmenu": "*"
 	}
 }

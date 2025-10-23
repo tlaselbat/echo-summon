@@ -43,45 +43,8 @@ public final class EquipmentTooltipsClient {
                 if (!toolId.isEmpty()) {
                     lines.add(Text.translatable("item.echo_summon.mount_saddle.tooltip.linked_tool"));
                 }
-            } else if (stack.isOf(ModItems.MOUNT_HARNESS)) {
-                lines.add(Text.translatable("item.echo_summon.mount_harness.tooltip.basic"));
-                NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
-                if (custom == null) return;
-                if (!Screen.hasShiftDown()) return;
-                NbtCompound data = custom.copyNbt();
-
-                String mType = NbtUtils.getString(data, "mount_type");
-                if (mType.isEmpty()) {
-                    // Some harness data might be nested; try common key
-                    data.getCompound(ModConstants.MOUNT_HARNESS_DATA_KEY).ifPresent(n -> {
-                        String nested = NbtUtils.getString(n, "mount_type");
-                        if (!nested.isEmpty()) {
-                            addMountTypeLine(lines, nested);
-                        }
-                    });
-                } else {
-                    addMountTypeLine(lines, mType);
-                }
-
-                String toolId = NbtUtils.getString(data, ModConstants.HARNESS_SUMMON_TOOL_ID_KEY);
-                if (!toolId.isEmpty()) {
-                    lines.add(Text.translatable("item.echo_summon.mount_harness.tooltip.linked_tool"));
-                }
             }
         });
     }
-
-    private static void addMountTypeLine(java.util.List<net.minecraft.text.Text> lines, String idStr) {
-        try {
-            Identifier id = Identifier.of(idStr);
-            EntityType<?> et = Registries.ENTITY_TYPE.get(id);
-            if (et != null) {
-                lines.add(Text.translatable("item.echo_summon.mount_harness.tooltip.mount_type", et.getName()));
-            } else {
-                lines.add(Text.translatable("item.echo_summon.mount_harness.tooltip.mount_type", Text.literal(idStr)));
-            }
-        } catch (Exception e) {
-            lines.add(Text.translatable("item.echo_summon.mount_harness.tooltip.mount_type", Text.literal(idStr)));
-        }
-    }
+    
 }

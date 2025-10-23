@@ -13,15 +13,16 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
-
+ 
+/**
+ * Registers all mod items (tool and equipment) and exposes helpers to add them to item groups.
+ */
 public class ModItems  {
 
-    //TODO: add trinket item for horse storage
-
-    public static final Item SADDLE_SUMMON_TOOL = registerModItems("saddle_summon_tool",
+    public static final Item SUMMON_TOOL = registerModItems("summon_tool",
             new SaddleSummonToolItem(
                     new Item.Settings()
-                            .registryKey(RegistryKey.of(RegistryKeys.ITEM, ModConstants.Id("saddle_summon_tool")))
+                            .registryKey(RegistryKey.of(RegistryKeys.ITEM, ModConstants.Id("summon_tool")))
                             .maxCount(1)
                             .fireproof()
             )
@@ -46,7 +47,7 @@ public class ModItems  {
     private static void addItemsToItemGroup(FabricItemGroupEntries entries) {
 
         // Add the Saddle Summon Tool to the item group
-        entries.add(SADDLE_SUMMON_TOOL);
+        entries.add(SUMMON_TOOL);
         // Add the Mount Saddle item to the item group
         entries.addAfter(Items.SADDLE, MOUNT_SADDLE);
         // Harness summon tool obsolete: do not list
@@ -54,11 +55,17 @@ public class ModItems  {
         entries.addAfter(MOUNT_SADDLE, MOUNT_HARNESS);
     }
 
+    /**
+     * Register a mod item into the global registry with the mod's identifier.
+     */
     private static Item registerModItems(String itemName, Item item) {
         // Register the item with the game's registry
         return Registry.register(Registries.ITEM, ModConstants.Id(itemName), item);
     }
 
+    /**
+     * Hook called during mod init to register items into the vanilla Tools item group.
+     */
     public static void registerModItems() {
         // Modify the TOOLS item group to include our mod's items
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS)

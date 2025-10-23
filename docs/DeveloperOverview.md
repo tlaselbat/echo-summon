@@ -108,9 +108,25 @@ All four items are added to the vanilla TOOLS creative tab in the order saddle â
 ## Commands & Utilities
 
 - **`/test_saddle_summon_tool`** (`SpawnAllowedMountsCommand`)
-  - QA helper for spawning every entity in tag `echo_summon:saddle_summon_tool_allowed_mounts`.
+  - QA helper driven by `SpawnConfigService` using the default `SpawnCommandConfig` entries in `config/`.
+  - Spawns the configured entity list (default mirrors legacy selection) and applies optional chest/variant configuration per entry.
   - Subcommands: `kill` (despawn test entities/items), `saddled` (spawn pre-equipped mounts).
   - Annotates generated items so cleanup routines can track them.
+  - Controlled via `EchoSummonConfig.disableTestCommandMountAI`; when `false` (default) mounts retain normal AI for interactive testing.
+
+## Regression Checklist
+
+- **Capture/Summon Flow**
+  - `/give @s echo_summon:saddle_summon_tool` and capture a tagged mount.
+  - Verify stored mount metadata (`/data get entity`).
+  - Summon, dismiss, and release to confirm cooldowns and saddle return.
+- **Harness Flow**
+  - Use the harness tool to capture and summon, ensuring harness data persists and dismiss works.
+- **Spawn Command**
+  - `/echo_summon test` and `/echo_summon test saddled` spawn configured entities per `SpawnCommandConfig`.
+  - `/echo_summon kill` removes all tagged mounts/items.
+- **Item Cleanup**
+  - Ensure tagged run items (`echo_summon:test_command`) are removed from inventories and world drops after kill.
 
 ## Tags & Data (`src/main/resources/data/`)
 

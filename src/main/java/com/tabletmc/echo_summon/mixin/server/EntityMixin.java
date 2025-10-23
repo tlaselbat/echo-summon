@@ -10,5 +10,5 @@ import org.spongepowered.asm.mixin.Shadow;
 public abstract class EntityMixin implements EntityMixinImpl {
     @Shadow @Nullable private Entity.RemovalReason removalReason;
 
-    public void undoRemove() { removalReason = null; }
+    public void echoSummon$undoRemove() { removalReason = null; }
 }
