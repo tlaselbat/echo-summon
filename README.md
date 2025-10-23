@@ -1,4 +1,4 @@
-# Echo Summon — Summon Tool 
+# Echo Summon — Summon Tool (Draft)
 
 A simple guide for new players.
 
@@ -38,13 +38,13 @@ Tip: Hover the tool in your inventory and hold Shift to see stored mount details
 - **Mod loader**: Fabric
 - **Java runtime**: Java 21 (21.x)
 - **Required mods** (place in the same `mods` folder):
-  - Fabric API (for 1.21.8)
-  - Cloth Config (for 1.21.8)
-  - Mod Menu (client UI; for 1.21.8)
+    - Fabric API (for 1.21.8)
+    - Cloth Config (for 1.21.8)
+    - Mod Menu (client UI; for 1.21.8)
 
 ### Install steps
 1) **Download** the mod `.jar` from the Releases section of this page.
 2) **Place** the `.jar` into your Minecraft mods folder:
-   - Windows: `%AppData%\.minecraft\mods`
-   - macOS: `~/Library/Application Support/minecraft/mods`
-   - Linux: `~/.minecraft/mods`
+    - Windows: `%AppData%\.minecraft\mods`
+    - macOS: `~/Library/Application Support/minecraft/mods`
+    - Linux: `~/.minecraft/mods`
