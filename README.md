@@ -15,7 +15,6 @@ A simple guide for new players.
 - **Dismiss**: Right‑click while riding the summoned mount to store it back in the tool.
 - **Release**: Sneak (Shift) + right‑click to put the stored mount back into the world and clear the tool.
 - **Cooldown**: Short cooldown (~1s) between actions to prevent spam.
-
 ## Supported mounts
 - **Horse**
 - **Donkey** (chests supported; inventory preserved)
@@ -24,7 +23,6 @@ A simple guide for new players.
 - **Skeleton Horse**
 - **Zombie Horse**
 - **Ghast (Happy Ghast)**
-
 Tip: Hover the tool in your inventory and hold Shift to see stored mount details (type, health, owner).
 
 ---
@@ -48,3 +46,15 @@ Tip: Hover the tool in your inventory and hold Shift to see stored mount details
     - Windows: `%AppData%\.minecraft\mods`
     - macOS: `~/Library/Application Support/minecraft/mods`
     - Linux: `~/.minecraft/mods`
+
+---
+
+## ROADMAP
+
+- **Theme**: not decided. this will determine the textures and effects.
+- **Entity textures**: 7 mounts × (body + saddle) = 14.
+- **Item predicates**: 7 mounts × 2 states + empty = 15.
+- **Tooltips**: lore + state tag (Summoned/Dismissed).
+- **VFX/SFX**: use, summon, dismiss, release, capture.
+
+If you want to contribute, see `src/main/resources/assets/echo_summon/` for models and textures. Item predicate models live under `assets/echo_summon/models/item/` and entity equipment/overlays under `assets/echo_summon/equipment/entity/`.
