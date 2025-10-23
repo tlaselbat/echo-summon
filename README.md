@@ -1,31 +1,50 @@
-# Transport Plus
+# Echo Summon — Summon Tool 
 
-A simple, player-friendly overview of the Transport Plus items.
+A simple guide for new players.
 
-## TL;DR
-- Items are in Creative > Tools (stack 1, fireproof).
-- Use Saddle Summon Tool to capture allowed mounts; use Harness Summon Tool + Mount Harness for Happy Ghast.
-- Controls: Right-click (not riding) = Summon; Sneak + Right-click = Release; Right-click (while riding) = Dismiss.
-- Mount Saddle equips horses/camels etc.; Mount Harness equips Happy Ghast.
-- Short cooldown (1s) between actions.
-- Test command: /test_saddle_summon_tool (saddled; kill).
+## What the Summon Tool does
+- **Store one mount** inside the tool.
+- **Summon and ride** that mount anywhere, then **dismiss** it back into the tool.
+- **Release** the mount back into the world permanently (and clear the tool).
+- Works on **Ghast (Happy Ghast)** and on **donkeys/mules with chests** (their chest contents are preserved).
 
-### Controls cheatsheet
-| Situation | Do this | Result |
-| --- | --- | --- |
-| Not riding | Right-click | Summon stored mount and mount it |
-| Sneaking | Right-click | Release stored mount to world and clear the tool |
-| Riding summoned mount | Right-click | Dismiss the mount |
+## Quick start
+- **Get the item**: Creative inventory → `Tools` tab → `Summon Tool`.
+- **Capture**: Hold the tool and right‑click an allowed mount while not riding.
+- **Summon**: Right‑click (not riding) to spawn the stored mount and mount it.
+- **Dismiss**: Right‑click while riding the summoned mount to store it back in the tool.
+- **Release**: Sneak (Shift) + right‑click to put the stored mount back into the world and clear the tool.
+- **Cooldown**: Short cooldown (~1s) between actions to prevent spam.
 
-## Screenshots
-- Saddle Summon Tool: ![Saddle Summon Tool](docs/images/saddle_summon_tool.png)
-- Mount Saddle: ![Mount Saddle](docs/images/mount_saddle.png)
-- Harness Summon Tool: ![Harness Summon Tool](docs/images/harness_summon_tool.png)
-- Mount Harness on Happy Ghast: ![Mount Harness on Happy Ghast](docs/images/happy_ghast_harness.png)
-- Flow example (capture → summon → dismiss): ![Flow](docs/images/flow_capture_summon_dismiss.png)
+## Supported mounts
+- **Horse**
+- **Donkey** (chests supported; inventory preserved)
+- **Mule** (chests supported; inventory preserved)
+- **Camel**
+- **Skeleton Horse**
+- **Zombie Horse**
+- **Ghast (Happy Ghast)**
 
-Place your PNGs at these paths (create `docs/images/`) or update the links to match your images.
+Tip: Hover the tool in your inventory and hold Shift to see stored mount details (type, health, owner).
 
-## Full guide
-See the complete player guide with tips and supported mounts:
-- docs/ModItems-UserGuide.md
+---
+
+## Installation
+- **Minecraft version**: 1.21.8
+- **Mod loader**: Fabric (loader 0.17.3)
+
+### Mod requirements
+- **Minecraft Java**: 1.21.8
+- **Mod loader**: Fabric
+- **Java runtime**: Java 21 (21.x)
+- **Required mods** (place in the same `mods` folder):
+  - Fabric API (for 1.21.8)
+  - Cloth Config (for 1.21.8)
+  - Mod Menu (client UI; for 1.21.8)
+
+### Install steps
+1) **Download** the mod `.jar` from the Releases section of this page.
+2) **Place** the `.jar` into your Minecraft mods folder:
+   - Windows: `%AppData%\.minecraft\mods`
+   - macOS: `~/Library/Application Support/minecraft/mods`
+   - Linux: `~/.minecraft/mods`
