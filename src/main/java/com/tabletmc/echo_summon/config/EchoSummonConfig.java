@@ -17,9 +17,9 @@ public final class EchoSummonConfig {
     private static final String KEY_BODY_GLINT = "enableMountBodyGlint";
     private static final String KEY_DISABLE_TEST_MOUNT_AI = "disableTestCommandMountAI";
 
-    // Defaults: enabled
-    public static boolean enableCustomMountBodyRendering = true;
-    public static boolean enableMountBodyGlint = true;
+    // Defaults: disabled
+    public static boolean enableCustomMountBodyRendering = false;
+    public static boolean enableMountBodyGlint = false;
     public static boolean disableTestCommandMountAI = false;
 
     private static Path configPath() {
@@ -33,8 +33,8 @@ public final class EchoSummonConfig {
             try (InputStream in = Files.newInputStream(path)) {
                 p.load(in);
             } catch (IOException ignored) {}
-            enableCustomMountBodyRendering = getBoolean(p, KEY_BODY_RENDER, true);
-            enableMountBodyGlint = getBoolean(p, KEY_BODY_GLINT, true);
+            enableCustomMountBodyRendering = getBoolean(p, KEY_BODY_RENDER, false);
+            enableMountBodyGlint = getBoolean(p, KEY_BODY_GLINT, false);
             disableTestCommandMountAI = getBoolean(p, KEY_DISABLE_TEST_MOUNT_AI, false);
         } else {
             // Write defaults on first run

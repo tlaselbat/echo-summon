@@ -25,17 +25,17 @@ public class ModMenuIntegration implements ModMenuApi {
             ConfigEntryBuilder eb = builder.entryBuilder();
 
             general.addEntry(eb.startBooleanToggle(
-                            Text.translatable("config.echo_summon.enableCustomMountBodyRendering"),
+                            Text.translatable("config.echo_summon.enableCustomMountBodyRendering").copy().append(Text.literal(" (testing)")),
                             EchoSummonConfig.enableCustomMountBodyRendering)
-                    .setDefaultValue(true)
+                    .setDefaultValue(false)
                     .setTooltip(Text.translatable("config.echo_summon.enableCustomMountBodyRendering.tooltip"))
                     .setSaveConsumer(val -> EchoSummonConfig.enableCustomMountBodyRendering = val)
                     .build());
 
             general.addEntry(eb.startBooleanToggle(
-                            Text.translatable("config.echo_summon.enableMountBodyGlint"),
+                            Text.translatable("config.echo_summon.enableMountBodyGlint").copy().append(Text.literal(" (testing)")),
                             EchoSummonConfig.enableMountBodyGlint)
-                    .setDefaultValue(true)
+                    .setDefaultValue(false)
                     .setTooltip(Text.translatable("config.echo_summon.enableMountBodyGlint.tooltip"))
                     .setSaveConsumer(val -> EchoSummonConfig.enableMountBodyGlint = val)
                     .build());
