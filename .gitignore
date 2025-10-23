@@ -40,3 +40,5 @@ replay_*.log
 .windsurf-ignore/
 *.ps1
 docs/*
+*.bat
+.gitignore
