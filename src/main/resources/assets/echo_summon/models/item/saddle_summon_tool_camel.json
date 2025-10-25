@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "echo_summon:item/saddle_summon_tool_camel"
-  }
-}

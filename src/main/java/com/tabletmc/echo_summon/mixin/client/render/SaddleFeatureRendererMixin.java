@@ -1,10 +1,10 @@
 package com.tabletmc.echo_summon.mixin.client.render;
+import com.tabletmc.echo_summon.client.glint.EchoGlintRenderer;
 import com.tabletmc.echo_summon.ModConstants;
 import com.tabletmc.echo_summon.config.EchoSummonConfig;
 import net.fabricmc.api.Environment;
 import net.fabricmc.api.EnvType;
 import net.minecraft.client.MinecraftClient;
-import com.tabletmc.echo_summon.item.ModItems;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -25,45 +25,57 @@ import net.minecraft.item.equipment.EquipmentAsset;
 import net.minecraft.item.equipment.EquipmentAssetKeys;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.Identifier;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Arrays;
+ 
 
 @Environment(EnvType.CLIENT)
 @Mixin(SaddleFeatureRenderer.class)
 public abstract class SaddleFeatureRendererMixin {
 
+    @Final
     @Shadow private EquipmentRenderer equipmentRenderer;
+    @Final
     @Shadow private EquipmentModel.LayerType layerType;
+    @Final
     @Shadow private Function<LivingEntityRenderState, ItemStack> saddleStackGetter;
     // no context shadow; not present in this mapping
 
+    @Final
     @Shadow private EntityModel<?> adultModel;
+    @Final
     @Shadow private EntityModel<?> babyModel;
 
     // Maps for mount saddle overlays
     // - Saddle layer -> mount saddle asset id
+    @Unique
     private static final Map<EquipmentModel.LayerType, RegistryKey<EquipmentAsset>> SADDLE_ASSET = new EnumMap<>(EquipmentModel.LayerType.class);
+    @Unique
     private static final Map<EquipmentModel.LayerType, EquipmentModel.LayerType> BODY_LAYER_BY_SADDLE = new EnumMap<>(EquipmentModel.LayerType.class);
     // - Saddle layer -> echo body asset id
+    @Unique
     private static final Map<EquipmentModel.LayerType, RegistryKey<EquipmentAsset>> BODY_ASSET_BY_SADDLE = new EnumMap<>(EquipmentModel.LayerType.class);
+    @Unique
     private static final Map<EquipmentModel.LayerType, Identifier> BASE_BODY_TEXTURE = new EnumMap<>(EquipmentModel.LayerType.class);
+    @Unique
     private static final Map<String, Identifier> HORSE_COLOR_TEXTURES = new java.util.HashMap<>();
-    private static final Map<String, Identifier> HORSE_MARKING_TEXTURES = new java.util.HashMap<>();
 
-    // Reflection handles for translucent Z-offset layers (not present on all mappings)
+    // Reflection handles for Z-offset layers (not present on all mappings)
+    @Unique
     private static java.lang.reflect.Method TRANSLUCENT_CULL_Z_OFFSET_METHOD;
-    private static java.lang.reflect.Method TRANSLUCENT_Z_OFFSET_METHOD;
+    @Unique
+    private static java.lang.reflect.Method CUTOUT_NO_CULL_Z_OFFSET_METHOD;
 
     static {
       // Saddle overlays (asset IDs must match equipment asset JSON IDs = path under assets/.../equipment/)
@@ -82,18 +94,19 @@ public abstract class SaddleFeatureRendererMixin {
       mapBody(EquipmentModel.LayerType.HORSE_SADDLE,  EquipmentModel.LayerType.HORSE_BODY,   "entity/horse_mount_body/horse_mount_body");
       // Reflective: only maps if CAMEL_BODY exists on this mapping
       mapBodyByName(EquipmentModel.LayerType.CAMEL_SADDLE, "CAMEL_BODY",   "entity/camel_mount_body/camel_mount_body");
-      BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.HORSE_SADDLE,
-              ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body.png"));
-      BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.DONKEY_SADDLE,
-              ModConstants.Id("textures/entity/equipment/horse_body/donkey_mount_body.png"));
-      BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.MULE_SADDLE,
-              ModConstants.Id("textures/entity/equipment/horse_body/mule_mount_body.png"));
-      BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.SKELETON_HORSE_SADDLE,
-              ModConstants.Id("textures/entity/equipment/horse_body/skeleton_mount_body.png"));
-      BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.ZOMBIE_HORSE_SADDLE,
-              ModConstants.Id("textures/entity/equipment/horse_body/zombie_mount_body.png"));
-      BASE_BODY_TEXTURE.put(EquipmentModel.LayerType.CAMEL_SADDLE,
-              ModConstants.Id("textures/entity/equipment/camel_body/camel_mount_body.png"));
+      // Derive mask textures from equipment asset ids (textures/entity/equipment/<asset_path>.png)
+      for (var e : BODY_ASSET_BY_SADDLE.entrySet()) {
+          Identifier id = e.getValue().getValue();
+          if (id != null) {
+              String p = id.getPath();
+              // Asset paths are of form "entity/<folder>/<name>"; avoid duplicating the "entity/" segment
+              if (p.startsWith("entity/")) {
+                  p = p.substring("entity/".length());
+              }
+              Identifier tex = Identifier.of(id.getNamespace(), "textures/entity/equipment/" + p + ".png");
+              BASE_BODY_TEXTURE.put(e.getKey(), tex);
+          }
+      }
 
       // Horse coat variants (keys match HorseColor enum names in lower_snake and condensed forms)
       registerHorseColor("white", "horse_mount_body_color_white.png");
@@ -103,35 +116,65 @@ public abstract class SaddleFeatureRendererMixin {
       registerHorseColor("black", "horse_mount_body_color_black.png");
       registerHorseColor("gray", "horse_mount_body_color_gray.png");
       registerHorseColor("dark_brown", "horse_mount_body_color_darkbrown.png");
-      // Horse markings (keys match common HorseMarking enum names)
-      registerHorseMarking("white", "horse_mount_body_marking_white.png");
-      registerHorseMarking("white_field", "horse_mount_body_marking_whitefield.png");
-      registerHorseMarking("white_dots", "horse_mount_body_marking_whitedots.png");
-      registerHorseMarking("black_dots", "horse_mount_body_marking_blackdots.png");
     }
 
+    // Create a tinting proxy that multiplies vertex colors by a configurable tint and intensity.
+    // We only intercept the color(int,int,int,int) call to avoid version-specific method signatures.
+    @Unique
+    private static VertexConsumer tinted(VertexConsumer base, float intensity, int rgb, int opacity255) {
+        try {
+            final float clamped = intensity < 0f ? 0f : Math.min(1f, intensity);
+            final float tr = ((rgb >> 16) & 0xFF) / 255f * clamped;
+            final float tg = ((rgb >> 8) & 0xFF) / 255f * clamped;
+            final float tb = (rgb & 0xFF) / 255f * clamped;
+            final float ta = Math.max(1, Math.min(255, opacity255)) / 255f;
+            java.lang.reflect.InvocationHandler ih = (proxy, method, args) -> {
+                if (args != null && args.length == 4 && "color".equals(method.getName())) {
+                    try {
+                        int r = (int) args[0];
+                        int g = (int) args[1];
+                        int b = (int) args[2];
+                        int a = (int) args[3];
+                        int nr = Math.min(255, Math.max(0, Math.round(r * tr)));
+                        int ng = Math.min(255, Math.max(0, Math.round(g * tg)));
+                        int nb = Math.min(255, Math.max(0, Math.round(b * tb)));
+                        int na = Math.min(255, Math.max(0, Math.round(a * ta)));
+                        return method.invoke(base, nr, ng, nb, na);
+                    } catch (Throwable ignored) {
+                        // Fallback to passthrough on any reflection error
+                    }
+                }
+                return method.invoke(base, args);
+            };
+            return (VertexConsumer) java.lang.reflect.Proxy.newProxyInstance(
+                    VertexConsumer.class.getClassLoader(),
+                    new Class<?>[]{VertexConsumer.class},
+                    ih);
+        } catch (Throwable ignored) {
+            return base;
+        }
+    }
+
+    @Unique
     private static void registerHorseColor(String key, String textureFile) {
         Identifier tex = ModConstants.Id("textures/entity/equipment/horse_body/" + textureFile);
         HORSE_COLOR_TEXTURES.put(key, tex);
         HORSE_COLOR_TEXTURES.put(key.replace("_", ""), tex);
     }
 
-    private static void registerHorseMarking(String key, String textureFile) {
-        Identifier tex = ModConstants.Id("textures/entity/equipment/horse_body/" + textureFile);
-        HORSE_MARKING_TEXTURES.put(key, tex);
-        HORSE_MARKING_TEXTURES.put(key.replace("_", ""), tex);
-    }
-
+    @Unique
     private static void putSaddle(EquipmentModel.LayerType saddleLayer, String assetIdPath) {
         SADDLE_ASSET.put(saddleLayer, RegistryKey.of(EquipmentAssetKeys.REGISTRY_KEY, ModConstants.Id(assetIdPath)));
     }
 
+    @Unique
     private static void mapBody(EquipmentModel.LayerType saddleLayer, EquipmentModel.LayerType bodyLayer, String assetIdPath) {
         BODY_LAYER_BY_SADDLE.put(saddleLayer, bodyLayer);
         BODY_ASSET_BY_SADDLE.put(saddleLayer, RegistryKey.of(EquipmentAssetKeys.REGISTRY_KEY, ModConstants.Id(assetIdPath)));
     }
 
     // Resolves a body layer enum by name if present; no-op if absent
+    @Unique
     private static void mapBodyByName(EquipmentModel.LayerType saddleLayer, String bodyLayerName, String assetIdPath) {
         try {
             EquipmentModel.LayerType bodyLayer = EquipmentModel.LayerType.valueOf(bodyLayerName);
@@ -140,10 +183,55 @@ public abstract class SaddleFeatureRendererMixin {
         } catch (Throwable ignored) {}
     }
 
+    // Returns body asset for a given saddle layer, with a fallback for CAMEL when the body enum is missing
+    @Unique
+    private static RegistryKey<EquipmentAsset> bodyAssetForLayer(EquipmentModel.LayerType saddleLayer) {
+        RegistryKey<EquipmentAsset> key = BODY_ASSET_BY_SADDLE.get(saddleLayer);
+        if (key != null) return key;
+        try {
+            if (saddleLayer == EquipmentModel.LayerType.CAMEL_SADDLE) {
+                return RegistryKey.of(EquipmentAssetKeys.REGISTRY_KEY, ModConstants.Id("entity/camel_mount_body/camel_mount_body"));
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    @Unique
     private boolean shouldApplyBodyGlint(ItemStack saddleStack) {
         return !saddleStack.isEmpty();
     }
 
+    // Always suppress equipment-model glint for body overlays by clearing the
+    // ENCHANTMENT_GLINT_OVERRIDE on a copy of the saddle stack. Body glint is applied
+    // via our unified entity glint overlay instead for consistent visuals.
+    @Unique
+    private static ItemStack stackForBodyRender(ItemStack saddleStack) {
+        try {
+            ItemStack copy = saddleStack.copy();
+            copy.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, false);
+            return copy;
+        } catch (Throwable ignored) {
+            return saddleStack;
+        }
+    }
+
+    // For saddle rendering, respect a separate toggle. When disabled, clear the equipment glint;
+    // when enabled, keep default behavior so only the saddle glints.
+    @Unique
+    private static ItemStack stackForSaddleRender(ItemStack saddleStack) {
+        // Suppress vanilla equipment glint ONLY when Echo engine saddle glint is enabled.
+        // Otherwise, allow vanilla to render the saddle glint as a fallback.
+        try {
+            if (EchoSummonConfig.enableEchoGlintEngine && EchoSummonConfig.enableMountSaddleGlint) {
+                ItemStack copy = saddleStack.copy();
+                copy.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, false);
+                return copy;
+            }
+        } catch (Throwable ignored) {}
+        return saddleStack;
+    }
+
+    @Unique
     private void renderEntityGlintOnly(EntityModel<LivingEntityRenderState> model,
                                        MatrixStack matrices,
                                        VertexConsumerProvider vertexConsumers,
@@ -151,10 +239,19 @@ public abstract class SaddleFeatureRendererMixin {
                                        LivingEntityRenderState renderState) {
         model.setAngles(renderState);
         // Only used for non-horses; use the more visible entity glint
-        VertexConsumer glint = vertexConsumers.getBuffer(RenderLayer.getEntityGlint());
-        model.render(matrices, glint, light, OverlayTexture.DEFAULT_UV);
+        int passes = Math.max(1, Math.min(10, Math.round(EchoSummonConfig.mountGlintIntensity * 10f)));
+        for (int i = 0; i < passes; i++) {
+            VertexConsumer base = vertexConsumers.getBuffer(RenderLayer.getEntityGlint());
+            VertexConsumer glint = base;
+            if (EchoSummonConfig.mountGlintColor != 0xFFFFFF || EchoSummonConfig.mountGlintOpacity != 255) {
+                // Keep intensity-driven brightness via passes; tint/opacity handled per vertex color
+                glint = tinted(base, 1.0f, EchoSummonConfig.mountGlintColor, EchoSummonConfig.mountGlintOpacity);
+            }
+            model.render(matrices, glint, light, OverlayTexture.DEFAULT_UV);
+        }
     }
 
+    @Unique
     private void renderTranslucentBody(EntityModel<LivingEntityRenderState> model,
                                        MatrixStack matrices,
                                        VertexConsumerProvider vertexConsumers,
@@ -171,22 +268,19 @@ public abstract class SaddleFeatureRendererMixin {
     }
 
     // Render using a cutout layer with a small Z offset so it always appears above the base coat
+    @Unique
     private void renderCutoutZOffsetBody(EntityModel<LivingEntityRenderState> model,
                                          MatrixStack matrices,
                                          VertexConsumerProvider vertexConsumers,
                                          int light,
                                          Identifier texture) {
-        try {
-            VertexConsumer base = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCullZOffset(texture));
-            model.render(matrices, base, light, OverlayTexture.DEFAULT_UV);
-        } catch (Throwable t) {
-            // Fallback if ZOffset layer is unavailable on this environment
-            VertexConsumer base = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCull(texture));
-            model.render(matrices, base, light, OverlayTexture.DEFAULT_UV);
-        }
+        RenderLayer layer = getCutoutNoCullZOffsetLayer(texture);
+        VertexConsumer base = vertexConsumers.getBuffer(layer);
+        model.render(matrices, base, light, OverlayTexture.DEFAULT_UV);
     }
 
     // Prefer a translucent Z-offset layer when available to avoid z-fighting with the base coat
+    @Unique
     private void renderTranslucentZOffsetBody(EntityModel<LivingEntityRenderState> model,
                                               MatrixStack matrices,
                                               VertexConsumerProvider vertexConsumers,
@@ -199,30 +293,81 @@ public abstract class SaddleFeatureRendererMixin {
 
     // Attempts to call RenderLayer.getEntityTranslucentCullZOffset or getEntityTranslucentZOffset reflectively.
     // Falls back to standard translucent if unavailable on this version/mapping.
+    @Unique
     private static RenderLayer getTranslucentZOffsetLayer(Identifier texture) {
         try {
             if (TRANSLUCENT_CULL_Z_OFFSET_METHOD == null) {
-                try {
-                    TRANSLUCENT_CULL_Z_OFFSET_METHOD = RenderLayer.class.getMethod("getEntityTranslucentCullZOffset", Identifier.class);
-                } catch (Throwable ignored) {}
+                // Try multiple candidate names across versions/mappings
+                String[] names = new String[] {"getEntityTranslucentCullZOffset", "getEntityTranslucentZOffset"};
+                for (String n : names) {
+                    try {
+                        TRANSLUCENT_CULL_Z_OFFSET_METHOD = RenderLayer.class.getMethod(n, Identifier.class);
+                        break;
+                    } catch (Throwable ignored) {}
+                }
             }
             if (TRANSLUCENT_CULL_Z_OFFSET_METHOD != null) {
                 Object layer = TRANSLUCENT_CULL_Z_OFFSET_METHOD.invoke(null, texture);
                 if (layer instanceof RenderLayer rl) return rl;
             }
+        } catch (Throwable ignored) {
+        }
+        return RenderLayer.getEntityTranslucent(texture);
+    }
 
-            if (TRANSLUCENT_Z_OFFSET_METHOD == null) {
-                try {
-                    TRANSLUCENT_Z_OFFSET_METHOD = RenderLayer.class.getMethod("getEntityTranslucentZOffset", Identifier.class);
-                } catch (Throwable ignored) {}
+    // Attempts to call RenderLayer.getEntityCutoutNoCullZOffset or getEntityCutoutZOffset reflectively.
+    // Falls back to standard cutout-no-cull if unavailable.
+    @Unique
+    private static RenderLayer getCutoutNoCullZOffsetLayer(Identifier texture) {
+        try {
+            if (CUTOUT_NO_CULL_Z_OFFSET_METHOD == null) {
+                String[] names = new String[] {"getEntityCutoutNoCullZOffset", "getEntityCutoutZOffset"};
+                for (String n : names) {
+                    try {
+                        CUTOUT_NO_CULL_Z_OFFSET_METHOD = RenderLayer.class.getMethod(n, Identifier.class);
+                        break;
+                    } catch (Throwable ignored) {}
+                }
             }
-            if (TRANSLUCENT_Z_OFFSET_METHOD != null) {
-                Object layer = TRANSLUCENT_Z_OFFSET_METHOD.invoke(null, texture);
+            if (CUTOUT_NO_CULL_Z_OFFSET_METHOD != null) {
+                Object layer = CUTOUT_NO_CULL_Z_OFFSET_METHOD.invoke(null, texture);
                 if (layer instanceof RenderLayer rl) return rl;
             }
         } catch (Throwable ignored) {
         }
-        return RenderLayer.getEntityTranslucent(texture);
+        return RenderLayer.getEntityCutoutNoCull(texture);
+    }
+
+    // Resolves the optional custom saddle body overlay texture path based on the CHOSEN saddle asset.
+    // Example: asset id path "entity/horse_saddle_item/horse_saddle_item" ->
+    // overlay path "textures/entity/equipment/horse_saddle_item/horse_saddle_item_body.png"
+    @Unique
+    private static Identifier resolveSaddleBodyOverlay(RegistryKey<EquipmentAsset> saddleAsset) {
+        if (saddleAsset == null) return null;
+        try {
+            Identifier id = saddleAsset.getValue();
+            if (id == null) return null;
+            String path = id.getPath(); // e.g. entity/horse_saddle_item/horse_saddle_item
+            if (path.startsWith("entity/")) path = path.substring("entity/".length());
+            int slash = path.lastIndexOf('/');
+            String folder = slash >= 0 ? path.substring(0, slash) : "";
+            String base = slash >= 0 ? path.substring(slash + 1) : path;
+            // remap folder from <mount>_saddle_item -> <mount>_saddle
+            String overlayFolder = folder;
+            if (overlayFolder.endsWith("_saddle_item")) {
+                overlayFolder = overlayFolder.substring(0, overlayFolder.length() - "_saddle_item".length()) + "_saddle";
+            }
+            // special-case horse variants
+            if ("zombie_saddle".equals(overlayFolder)) {
+                overlayFolder = "zombie_horse_saddle";
+            } else if ("skeleton_saddle".equals(overlayFolder)) {
+                overlayFolder = "skeleton_horse_saddle";
+            }
+            String texPath = "textures/entity/equipment/" + (overlayFolder.isEmpty() ? "" : overlayFolder + "/") + base + "_body.png";
+            return Identifier.of(id.getNamespace(), texPath);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
 
@@ -237,23 +382,17 @@ public abstract class SaddleFeatureRendererMixin {
             float limbDistance,
             CallbackInfo ci
     ) {
-        boolean bodyEnabled = EchoSummonConfig.enableCustomMountBodyRendering;
         ItemStack saddleStack = this.saddleStackGetter.apply(renderState);
         if (saddleStack.isEmpty()) return;
 
-        // Only apply custom rendering when our mount saddle is equipped (or the asset is from echo_summon)
-        boolean isEchoMountSaddle = saddleStack.isOf(ModItems.MOUNT_SADDLE);
+        // Resolve equippable for later use; do not restrict to echo_summon-only items
         EquippableComponent equippable = saddleStack.get(DataComponentTypes.EQUIPPABLE);
         boolean hasEchoAsset = false;
-        if (equippable != null && !equippable.assetId().isEmpty()) {
+        if (equippable != null && equippable.assetId().isPresent()) {
             try {
                 Identifier aid = equippable.assetId().get().getValue();
                 hasEchoAsset = aid != null && ModConstants.MOD_ID.equals(aid.getNamespace());
             } catch (Throwable ignored) {}
-        }
-        if (!(isEchoMountSaddle || hasEchoAsset)) {
-            // Not our saddle: let vanilla renderer proceed without canceling
-            return;
         }
 
         @SuppressWarnings("unchecked")
@@ -262,84 +401,74 @@ public abstract class SaddleFeatureRendererMixin {
         model.setAngles(renderState);
 
         // Use the same model for overlays to ensure consistent anchors with equipment body
-        EntityModel<LivingEntityRenderState> overlayModel = model;
-        overlayModel.setAngles(renderState);
+        // (already posed above)
 
         // equippable already resolved above
 
-        // If the saddle equipment asset is missing from resources, let vanilla renderer handle it to avoid missing overlays
+        // Probe for saddle asset existence, but do NOT early-return; we still want to apply body glint
+        // even if equipment assets are missing. We'll conditionally skip our saddle render and avoid
+        // canceling to let vanilla proceed when the asset is absent.
         RegistryKey<EquipmentAsset> probeSaddle = SADDLE_ASSET.get(this.layerType);
         if (probeSaddle == null) {
-            probeSaddle = equippable != null && !equippable.assetId().isEmpty()
+            probeSaddle = equippable != null && equippable.assetId().isPresent()
                     ? equippable.assetId().get()
                     : EquipmentAssetKeys.SADDLE;
         }
-        if (!equipmentAssetExists(probeSaddle)) {
-            return; // do not cancel; vanilla rendering will proceed
-        }
+        boolean hasSaddleAsset = equipmentAssetExists(probeSaddle);
 
-        // Body overlay (species-specific when available) — gated by config
-        if (bodyEnabled) {
-            EquipmentModel.LayerType bodyLayer = BODY_LAYER_BY_SADDLE.get(this.layerType);
-            Identifier baseTexture = BASE_BODY_TEXTURE.get(this.layerType);
-            if (bodyLayer != null) {
-                RegistryKey<EquipmentAsset> bodyAsset = BODY_ASSET_BY_SADDLE.get(this.layerType);
-                boolean isHorse = this.layerType == EquipmentModel.LayerType.HORSE_SADDLE;
+        // Removed captured mount body texture (testing) block
 
-                // For non-horses, draw the base body asset; for horses, rely on our variant overlays instead
-                if (!isHorse && bodyAsset != null) {
-                    this.equipmentRenderer.render(bodyLayer, bodyAsset, model, saddleStack, matrices, vertexConsumers, light);
-                }
-
-                if (isHorse) {
-                    // Overlay variant-specific textures when present (only applies to horses via instanceof check)
-                    // Render on overlayModel (context model if available) so anchors match the base body
-                    renderHorseVariantOverlays(overlayModel, matrices, vertexConsumers, light, renderState, saddleStack, baseTexture);
-                    // Overlay markings (white, white_field, white_dots, black_dots) when present
-                    renderHorseMarkingOverlays(overlayModel, matrices, vertexConsumers, light, renderState, saddleStack);
-                } else {
-                    // Disabled base-texture fallback for non-horses
-                }
-
-                // Special-case donkey/mule chest state to overlay chested texture if present
-                Identifier chestedTex = getChestedBodyTextureIfPresent(this.layerType, renderState);
-                if (chestedTex != null) {
-                    renderTranslucentBody(model, matrices, vertexConsumers, light, chestedTex, false);
-                }
+        // Unified body glint application: applies to all supported mount types when enabled
+        if (EchoSummonConfig.enableMountBodyGlint && shouldApplyBodyGlint(saddleStack)) {
+            if (EchoSummonConfig.enableEchoGlintEngine) {
+                Identifier sprite = resolveCustomBodyGlintSprite(this.layerType);
+                EchoGlintRenderer.renderBodyGlint(model, matrices, vertexConsumers, light, renderState, sprite);
             } else {
-                // No body layer is available on this mapping. Provide a camel-specific fallback so that
-                // the camel body overlay still renders even when CAMEL_BODY is missing.
-                try {
-                    if (this.layerType == EquipmentModel.LayerType.CAMEL_SADDLE && baseTexture != null && resourceExists(baseTexture)) {
-                        // Render the base camel body texture directly using a translucent Z-offset layer
-                        // to avoid z-fighting with the vanilla coat.
-                        renderTranslucentZOffsetBody(overlayModel, matrices, vertexConsumers, light, baseTexture);
-                    }
-                } catch (Throwable ignored) {
-                    // If CAMEL_SADDLE enum is not present in this environment, simply skip.
-                }
+                // Engine disabled: fallback to vanilla entity glint with Echo color/opacity via tinted consumer
+                renderEntityGlintOnly(model, matrices, vertexConsumers, light, renderState);
             }
-        }
-
-        // Unified glint application: controlled by config
-        if (EchoSummonConfig.enableMountBodyGlint && bodyEnabled && shouldApplyBodyGlint(saddleStack)) {
-            renderEntityGlintOnly(model, matrices, vertexConsumers, light, renderState);
         }
 
         // Draw the saddle overlay last so straps sit on top of body overlays
         RegistryKey<EquipmentAsset> saddleAsset = SADDLE_ASSET.get(this.layerType);
         if (saddleAsset == null) {
-            saddleAsset = equippable != null && !equippable.assetId().isEmpty()
+            saddleAsset = equippable != null && equippable.assetId().isPresent()
                     ? equippable.assetId().get()
                     : EquipmentAssetKeys.SADDLE;
         }
-        this.equipmentRenderer.render(this.layerType, saddleAsset, model, saddleStack, matrices, vertexConsumers, light);
+        // Respect config: use vanilla saddle asset when custom saddle textures are disabled
+        if (!EchoSummonConfig.enableCustomSaddleItemTexture) {
+            saddleAsset = EquipmentAssetKeys.SADDLE;
+        }
+        // Optional custom saddle body overlay (under straps), derived from the chosen saddle asset location
+        if (EchoSummonConfig.enableCustomSaddleItemBodyTexture) {
+            Identifier overlayTex = resolveSaddleBodyOverlay(saddleAsset);
+            if (overlayTex != null && resourceExists(overlayTex)) {
+                renderTranslucentZOffsetBody(model, matrices, vertexConsumers, light, overlayTex);
+            }
+        }
+        boolean renderedSaddle = false;
+        if (equipmentAssetExists(saddleAsset)) {
+            ItemStack saddleRenderStack = stackForSaddleRender(saddleStack);
+            this.equipmentRenderer.render(this.layerType, saddleAsset, model, saddleRenderStack, matrices, vertexConsumers, light);
+            renderedSaddle = true;
+        }
 
-        // We handled rendering for this layer, prevent vanilla duplicate
-        ci.cancel();
+        // Echo-colored saddle glint pass (avoid vanilla purple). Uses the saddle equipment sprite as mask.
+        if (EchoSummonConfig.enableEchoGlintEngine && EchoSummonConfig.enableMountSaddleGlint) {
+            Identifier saddleSprite = spriteFromEquipmentAsset(saddleAsset);
+            EchoGlintRenderer.renderSaddleGlint(model, matrices, vertexConsumers, light, renderState, saddleSprite);
+        }
+
+        // Prevent vanilla duplicate only if we rendered the saddle ourselves. If the equipment asset
+        // was missing, allow vanilla to handle it so the saddle still appears.
+        if (renderedSaddle) {
+            ci.cancel();
+        }
     }
 
     // Draws optional overlays for horse color variants if textures exist
+    @Unique
     private void renderHorseVariantOverlays(EntityModel<LivingEntityRenderState> model,
                                             MatrixStack matrices,
                                             VertexConsumerProvider vertexConsumers,
@@ -370,33 +499,7 @@ public abstract class SaddleFeatureRendererMixin {
         // 3) No fallback when not found (base-texture fallback disabled)
     }
 
-    // Draws optional overlays for horse markings if textures exist (white, white_field, white_dots, black_dots)
-    private void renderHorseMarkingOverlays(EntityModel<LivingEntityRenderState> model,
-                                            MatrixStack matrices,
-                                            VertexConsumerProvider vertexConsumers,
-                                            int light,
-                                            LivingEntityRenderState renderState,
-                                            ItemStack saddleStack) {
-        if (!(renderState instanceof HorseEntityRenderState horse)) return;
-
-        String marking = resolveHorseMarkingKey(horse);
-        if (marking.isEmpty()) return;
-
-        Identifier mapped = HORSE_MARKING_TEXTURES.get(marking);
-        if (mapped != null && resourceExists(mapped)) {
-            renderTranslucentBody(model, matrices, vertexConsumers, light, mapped, false);
-            return;
-        }
-
-        Identifier[] candidates = getHorseMarkingTextureCandidates(marking);
-        for (Identifier tex : candidates) {
-            if (resourceExists(tex)) {
-                renderTranslucentBody(model, matrices, vertexConsumers, light, tex, false);
-                return;
-            }
-        }
-    }
-
+    @Unique
     private static String safeEnumName(Object enumVal) {
         try {
             if (enumVal instanceof Enum<?> e) {
@@ -406,41 +509,12 @@ public abstract class SaddleFeatureRendererMixin {
         return "";
     }
 
-    // Attempts to obtain a marking enum name from the render state reflectively
-    private static String resolveHorseMarkingKey(HorseEntityRenderState horse) {
-        if (horse == null) return "";
-        // Try common field names first
-        try {
-            var f = horse.getClass().getField("marking");
-            Object v = f.get(horse);
-            String s = safeEnumName(v);
-            if (!s.isEmpty()) return s;
-        } catch (Throwable ignored) {}
-        try {
-            var f = horse.getClass().getField("pattern");
-            Object v = f.get(horse);
-            String s = safeEnumName(v);
-            if (!s.isEmpty()) return s;
-        } catch (Throwable ignored) {}
-        // Scan for any enum field whose name hints marking/pattern/style
-        try {
-            for (var f : horse.getClass().getFields()) {
-                String n = f.getName().toLowerCase(java.util.Locale.ROOT);
-                if (!(n.contains("mark") || n.contains("pattern") || n.contains("style"))) continue;
-                Object v = f.get(horse);
-                String s = safeEnumName(v);
-                if (!s.isEmpty()) return s;
-            }
-        } catch (Throwable ignored) {}
-        return "";
-    }
-
+    @Unique
     private static Identifier[] getHorseColorTextureCandidates(String colorKey) {
-        String snake = colorKey;
-        String clean = colorKey.replace("_", "");
+            String clean = colorKey.replace("_", "");
         List<Identifier> candidates = new ArrayList<>();
-        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_color_" + snake + ".png"));
-        if (!clean.equals(snake)) {
+        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_color_" + colorKey + ".png"));
+        if (!clean.equals(colorKey)) {
             candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_color_" + clean + ".png"));
         }
         if ("darkbrown".equals(clean)) {
@@ -449,31 +523,12 @@ public abstract class SaddleFeatureRendererMixin {
         return candidates.stream().filter(Objects::nonNull).distinct().toArray(Identifier[]::new);
     }
 
-    private static Identifier[] getHorseMarkingTextureCandidates(String markingKey) {
-        String snake = markingKey;
-        String clean = markingKey.replace("_", "");
-        List<Identifier> candidates = new ArrayList<>();
-        candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_" + snake + ".png"));
-        if (!clean.equals(snake)) {
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_" + clean + ".png"));
-        }
-        // explicit synonyms
-        if ("whitefield".equals(clean)) {
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_white_field.png"));
-        }
-        if ("whitedots".equals(clean)) {
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_white_dots.png"));
-        }
-        if ("blackdots".equals(clean)) {
-            candidates.add(ModConstants.Id("textures/entity/equipment/horse_body/horse_mount_body_marking_black_dots.png"));
-        }
-        return candidates.stream().filter(Objects::nonNull).distinct().toArray(Identifier[]::new);
-    }
-
 
     // Cache resource existence checks to avoid per-frame I/O
+    @Unique
     private static final java.util.concurrent.ConcurrentMap<Identifier, Boolean> RESOURCE_EXISTS_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
+    @Unique
     private static boolean resourceExists(Identifier id) {
         return RESOURCE_EXISTS_CACHE.computeIfAbsent(id, k -> {
             try {
@@ -487,6 +542,7 @@ public abstract class SaddleFeatureRendererMixin {
     }
 
     // Checks if an equipment asset JSON exists under assets/<ns>/equipment/<path>.json
+    @Unique
     private static boolean equipmentAssetExists(RegistryKey<EquipmentAsset> key) {
         if (key == null) return false;
         try {
@@ -499,8 +555,72 @@ public abstract class SaddleFeatureRendererMixin {
         }
     }
 
+    // Checks if an equipment asset JSON exists under assets/<ns>/equipment/<path>.json
+    @Unique
+    private static Identifier textureFromEquipmentAsset(RegistryKey<EquipmentAsset> key) {
+        if (key == null) return null;
+        try {
+            Identifier id = key.getValue();
+            if (id == null) return null;
+            return Identifier.of(id.getNamespace(), "textures/entity/equipment/" + id.getPath() + ".png");
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    // Resolves the custom body glint sprite for the given layer, honoring per-mount config overrides.
+    @Unique
+    private static Identifier resolveCustomBodyGlintSprite(EquipmentModel.LayerType layer) {
+        String raw = null;
+        try {
+            if (layer == EquipmentModel.LayerType.HORSE_SADDLE) raw = com.tabletmc.echo_summon.config.EchoSummonConfig.mountGlintMaskHorse;
+            else if (layer == EquipmentModel.LayerType.DONKEY_SADDLE) raw = com.tabletmc.echo_summon.config.EchoSummonConfig.mountGlintMaskDonkey;
+            else if (layer == EquipmentModel.LayerType.MULE_SADDLE) raw = com.tabletmc.echo_summon.config.EchoSummonConfig.mountGlintMaskMule;
+            else if (layer == EquipmentModel.LayerType.SKELETON_HORSE_SADDLE) raw = com.tabletmc.echo_summon.config.EchoSummonConfig.mountGlintMaskSkeletonHorse;
+            else if (layer == EquipmentModel.LayerType.ZOMBIE_HORSE_SADDLE) raw = com.tabletmc.echo_summon.config.EchoSummonConfig.mountGlintMaskZombieHorse;
+            else {
+                try {
+                    if (layer == EquipmentModel.LayerType.CAMEL_SADDLE) raw = com.tabletmc.echo_summon.config.EchoSummonConfig.mountGlintMaskCamel;
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        // If user did not set a custom mask, fall back to default body asset sprite
+        if (raw == null || raw.isBlank()) {
+            RegistryKey<EquipmentAsset> body = bodyAssetForLayer(layer);
+            return spriteFromEquipmentAsset(body);
+        }
+        String s = raw.trim();
+        try {
+            // Accept namespaced id like "modid:path"; otherwise default to our mod namespace
+            if (s.contains(":")) return Identifier.of(s);
+        } catch (Throwable ignored) {}
+        return ModConstants.Id(s);
+    }
+
+    // Sprite id inside the equipment atlas, matching the texture path under textures/entity/equipment/<asset_path>.png
+    // Example: asset id path "entity/horse_mount_body/horse_mount_body" ->
+    // sprite id "echo_summon:entity/equipment/horse_mount_body/horse_mount_body"
+    @Unique
+    private static Identifier spriteFromEquipmentAsset(RegistryKey<EquipmentAsset> key) {
+        if (key == null) return null;
+        try {
+            Identifier id = key.getValue();
+            if (id == null) return null;
+            // Use the full asset path so that both direct texture checks and atlas sprite lookup succeed.
+            // Do NOT truncate to the file name; the atlas sprite id mirrors the full path under entity/equipment/.
+            String path = id.getPath();
+            if (path.startsWith("entity/")) {
+                path = path.substring("entity/".length());
+            }
+            return Identifier.of(id.getNamespace(), "entity/equipment/" + path);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     // Returns an Identifier to a chested body texture if the entity is a donkey or mule with a chest
     // and the texture exists. Otherwise returns null to fall back to normal body assets.
+    @Unique
     private static Identifier getChestedBodyTextureIfPresent(EquipmentModel.LayerType saddleLayer, LivingEntityRenderState renderState) {
         boolean isChested = false;
         try {

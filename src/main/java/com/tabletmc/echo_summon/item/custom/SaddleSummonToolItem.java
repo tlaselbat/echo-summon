@@ -7,12 +7,11 @@ import com.tabletmc.echo_summon.net.payload.StringPayload;
 import com.tabletmc.echo_summon.net.service.SummonPersistence;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.consume.UseAction;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -36,6 +35,8 @@ public class SaddleSummonToolItem extends Item {
             if (player.isSneaking()) {
                 if (hasStoredMount(stack)) {
                     ClientPlayNetworking.send(new StringPayload("saddle_release"));
+                    // Start goat-horn style use animation
+                    player.setCurrentHand(hand);
                     return ActionResult.SUCCESS;
                 }
                 return ActionResult.PASS;
@@ -47,11 +48,15 @@ public class SaddleSummonToolItem extends Item {
                     ClientPlayNetworking.send(new StringPayload("saddle_dismiss"));
                     try { ClientCooldowns.applyCooldownToAllSummonTools((ClientPlayerEntity) player, ModConstants.SUMMON_COOLDOWN_TICKS); } catch (Throwable ignored) {}
                     try { KeybindTickEvents.lockSneakFor(ModConstants.SUMMON_COOLDOWN_TICKS); } catch (Throwable ignored) {}
+                    // Start goat-horn style use animation
+                    player.setCurrentHand(hand);
                     return ActionResult.SUCCESS;
                 }
                 ClientPlayNetworking.send(new StringPayload("saddle_summon"));
                 // Avoid double-starting the client GUI cooldown; rely on server sync for the indicator.
                 try { KeybindTickEvents.lockSneakFor(ModConstants.SUMMON_COOLDOWN_TICKS); } catch (Throwable ignored) {}
+                // Start goat-horn style use animation
+                player.setCurrentHand(hand);
                 return ActionResult.SUCCESS;
             }
 
@@ -61,6 +66,18 @@ public class SaddleSummonToolItem extends Item {
 
         // Server receives via ServerNetworking.registerGlobalReceiver (C2S), no need to send S2C here
         return ActionResult.SUCCESS_SERVER;
+    }
+
+    @Override
+    public UseAction getUseAction(ItemStack stack) {
+        // Render the same right-click animation as the vanilla goat horn
+        return UseAction.TOOT_HORN;
+    }
+
+    @Override
+    public int getMaxUseTime(ItemStack stack, LivingEntity user) {
+        // Positive value required to show the use animation; match goat horn-style duration
+        return 120; // ticks
     }
 
     // Capture when right-clicking an allowed mount entity while not riding and the summon tool is empty

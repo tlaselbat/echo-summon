@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "echo_summon:item/summon_tool_base",
   "textures": {
     "layer0": "echo_summon:item/summon_tool_skeleton_horse"
   }

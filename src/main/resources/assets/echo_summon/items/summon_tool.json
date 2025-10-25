@@ -1,61 +1,34 @@
 {
   "model": {
-    "type": "minecraft:select",
-    "property": "minecraft:custom_model_data",
-    "cases": [
-      {
-        "when": "echo_summon:horse",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_horse"
-        }
-      },
-      {
-        "when": "echo_summon:donkey",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_donkey"
-        }
-      },
-      {
-        "when": "echo_summon:mule",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_mule"
-        }
-      },
-      {
-        "when": "echo_summon:camel",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_camel"
-        }
-      },
-      {
-        "when": "echo_summon:skeleton_horse",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_skeleton_horse"
-        }
-      },
-      {
-        "when": "echo_summon:zombie_horse",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_zombie_horse"
-        }
-      },
-      {
-        "when": "echo_summon:happy_ghast",
-        "model": {
-          "type": "minecraft:model",
-          "model": "echo_summon:item/summon_tool_happy_ghast"
-        }
-      }
-    ],
-    "fallback": {
-      "type": "minecraft:model",
-      "model": "echo_summon:item/summon_tool"
+    "type": "minecraft:condition",
+    "property": "minecraft:using_item",
+    "on_true": {
+      "type": "minecraft:select",
+      "property": "minecraft:custom_model_data",
+      "cases": [
+        { "when": "echo_summon:horse", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_horse_using" } },
+        { "when": "echo_summon:donkey", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_donkey_using" } },
+        { "when": "echo_summon:mule", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_mule_using" } },
+        { "when": "echo_summon:camel", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_camel_using" } },
+        { "when": "echo_summon:skeleton_horse", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_skeleton_horse_using" } },
+        { "when": "echo_summon:zombie_horse", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_zombie_horse_using" } },
+        { "when": "echo_summon:happy_ghast", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_happy_ghast_using" } }
+      ],
+      "fallback": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_using" }
+    },
+    "on_false": {
+      "type": "minecraft:select",
+      "property": "minecraft:custom_model_data",
+      "cases": [
+        { "when": "echo_summon:horse", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_horse" } },
+        { "when": "echo_summon:donkey", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_donkey" } },
+        { "when": "echo_summon:mule", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_mule" } },
+        { "when": "echo_summon:camel", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_camel" } },
+        { "when": "echo_summon:skeleton_horse", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_skeleton_horse" } },
+        { "when": "echo_summon:zombie_horse", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_zombie_horse" } },
+        { "when": "echo_summon:happy_ghast", "model": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool_happy_ghast" } }
+      ],
+      "fallback": { "type": "minecraft:model", "model": "echo_summon:item/summon_tool" }
     }
   }
 }
