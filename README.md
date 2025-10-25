@@ -57,4 +57,12 @@ Tip: Hover the tool in your inventory and hold Shift to see stored mount details
 - **Tooltips**: lore + state tag (Summoned/Dismissed).
 - **VFX/SFX**: use, summon, dismiss, release, capture.
 
+## Commands (OP only)
+
+### `/echo_summon test <x y z>`
+Spawns test mounts at specified coordinates in two rows.
+
+### `/echo_summon kill`
+Removes all test-spawned mounts and items.
+
 If you want to contribute, see `src/main/resources/assets/echo_summon/` for models and textures. Item predicate models live under `assets/echo_summon/models/item/` and entity equipment/overlays under `assets/echo_summon/equipment/entity/`.
